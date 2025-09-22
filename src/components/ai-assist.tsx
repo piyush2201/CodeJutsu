@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { assistWithCode } from "@/ai/flows/assist-code";
 import type { Language } from "./header";
+import { CodeEditor } from "./code-editor";
+import { ScrollArea } from "./ui/scroll-area";
+import { Separator } from "./ui/separator";
 
 interface AiAssistProps {
   code: string;
@@ -27,6 +30,8 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [request, setRequest] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -39,19 +44,14 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
       return;
     }
     setIsGenerating(true);
+    setGeneratedCode(null);
     try {
       const result = await assistWithCode({
         code,
         language,
         request,
       });
-      onCodeUpdate(result.code);
-      toast({
-        title: "AI finished generating",
-        description: "Your code has been updated with the AI's suggestions.",
-      });
-      setIsOpen(false);
-      setRequest("");
+      setGeneratedCode(result.code);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
@@ -61,50 +61,142 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
           `An error occurred while generating code: ${errorMessage}`,
         variant: "destructive",
       });
+      // Stay in the request view if there's an error
+      setGeneratedCode(null);
     } finally {
       setIsGenerating(false);
     }
   };
 
+  const handleAccept = () => {
+    if (generatedCode) {
+      onCodeUpdate(generatedCode);
+      toast({
+        title: "Code Updated",
+        description: "The AI's suggestions have been applied to the editor.",
+      });
+      resetAndClose();
+    }
+  };
+
+  const handleDecline = () => {
+    resetAndClose();
+  };
+  
+  const handleCopyToClipboard = () => {
+    if (!generatedCode) return;
+    navigator.clipboard.writeText(generatedCode);
+    setIsCopied(true);
+    toast({
+      title: "Copied to clipboard",
+    });
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const resetAndClose = () => {
+    setIsOpen(false);
+    setRequest("");
+    setGeneratedCode(null);
+    setIsGenerating(false);
+  };
+  
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Reset state when dialog is closed, e.g. by pressing Esc
+      resetAndClose();
+    } else {
+      setIsOpen(true);
+    }
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline">
           <Sparkles className="mr-2" />
           Ask AI
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>AI Code Assistant</DialogTitle>
-          <DialogDescription>
-            Describe the changes you want to make to your code. The AI will
-            generate a new version for you.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <Textarea
-            placeholder="e.g., 'Refactor this code to be more efficient' or 'Add error handling for the input'"
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            rows={4}
-            disabled={isGenerating}
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            type="submit"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-          >
-            {isGenerating ? (
-              <Loader2 className="mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2" />
-            )}
-            {isGenerating ? "Generating..." : "Generate Code"}
-          </Button>
-        </DialogFooter>
+      <DialogContent className="sm:max-w-[80vw] lg:max-w-[60vw] h-[80vh] flex flex-col">
+        {!generatedCode && (
+          <>
+            <DialogHeader>
+              <DialogTitle>AI Code Assistant</DialogTitle>
+              <DialogDescription>
+                Describe the changes you want to make to your code. The AI will
+                generate a new version for you.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 flex-1">
+              <Textarea
+                placeholder="e.g., 'Refactor this code to be more efficient' or 'Add error handling for the input'"
+                value={request}
+                onChange={(e) => setRequest(e.target.value)}
+                className="h-full resize-none"
+                disabled={isGenerating}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="submit"
+                onClick={handleGenerate}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <Loader2 className="mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2" />
+                )}
+                {isGenerating ? "Generating..." : "Generate Code"}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+        {generatedCode && !isGenerating && (
+          <>
+            <DialogHeader>
+              <DialogTitle>AI Suggestions</DialogTitle>
+              <DialogDescription>
+                Review the code generated by the AI. Accept it to apply the changes to your editor.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Generated Code</h3>
+                    <Button variant="ghost" size="sm" onClick={handleCopyToClipboard}>
+                        {isCopied ? <ClipboardCheck className="mr-2"/> : <Clipboard className="mr-2"/>}
+                        {isCopied ? "Copied" : "Copy"}
+                    </Button>
+                </div>
+                <Separator />
+                <div className="rounded-lg border overflow-hidden flex-1">
+                  <CodeEditor 
+                    language={language}
+                    theme="vs-dark"
+                    value={generatedCode}
+                    onChange={() => {}} // Readonly
+                    options={{ readOnly: true }}
+                  />
+                </div>
+            </div>
+            <DialogFooter>
+               <Button variant="outline" onClick={handleDecline}>
+                <X className="mr-2" />
+                Decline
+              </Button>
+              <Button onClick={handleAccept}>
+                <Check className="mr-2" />
+                Accept
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+         {isGenerating && generatedCode === null && (
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+                <Loader2 className="w-16 h-16 animate-spin text-primary" />
+                <p className="text-muted-foreground">Generating suggestions...</p>
+            </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -18,6 +18,7 @@ interface CodeEditorProps {
   theme: string;
   value: string;
   onChange: OnChange;
+  options?: editor.IStandaloneEditorConstructionOptions;
 }
 
 export function CodeEditor({
@@ -25,6 +26,7 @@ export function CodeEditor({
   theme,
   value,
   onChange,
+  options,
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
@@ -51,6 +53,7 @@ export function CodeEditor({
           fontFamily: "'Source Code Pro', monospace",
           scrollBeyondLastLine: false,
           automaticLayout: true,
+          ...options,
         }}
       />
     </div>
