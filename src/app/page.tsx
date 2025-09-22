@@ -7,7 +7,6 @@ import { CodeEditor } from "@/components/code-editor";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 
 const defaultCode: Record<Language, string> = {
   python: 'name = input("Enter your name: ")\nprint(f"Hello, {name}!")',
@@ -20,7 +19,6 @@ export default function Home() {
   const [language, setLanguage] = useState<Language>("python");
   const [theme, setTheme] = useState<Theme>("vs-dark");
   const [code, setCode] = useState<string>(defaultCode.python);
-  const [stdin, setStdin] = useState<string>("");
   const [output, setOutput] = useState<string>("");
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
   const { toast } = useToast();
@@ -29,7 +27,6 @@ export default function Home() {
     setLanguage(lang);
     setCode(defaultCode[lang]);
     setOutput(""); // Clear output when language changes
-    setStdin(""); // Clear input when language changes
   };
 
   const handleCodeChange = (value: string | undefined) => {
@@ -46,11 +43,12 @@ export default function Home() {
       return;
     }
     setIsCompiling(true);
-    const initialOutput = stdin ? `> ${stdin}\n\n` : '';
-    setOutput(initialOutput + "Compiling and running...");
+    setOutput("Compiling and running...");
     try {
-      const result = await compileAndRunCode({ code, language, stdin });
-      setOutput(initialOutput + result.output);
+      // Since there's no stdin panel, we pass an empty string for stdin.
+      // The AI model will now handle interactive input if the code requires it.
+      const result = await compileAndRunCode({ code, language, stdin: "" });
+      setOutput(result.output);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
@@ -113,16 +111,6 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-                <h2 className="text-lg font-semibold px-1">Input (stdin)</h2>
-                <Separator />
-                <Textarea
-                    value={stdin}
-                    onChange={(e) => setStdin(e.target.value)}
-                    placeholder="Provide standard input to your program here."
-                    className="h-32 font-code"
-                />
-            </div>
             <div className="flex flex-col flex-1 gap-2">
                 <h2 className="text-lg font-semibold px-1">Output</h2>
                 <Separator />

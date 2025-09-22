@@ -32,22 +32,18 @@ const compilationPrompt = ai.definePrompt({
   output: { schema: CompileAndRunCodeOutputSchema },
   prompt: `
     You are a code compiler and runtime environment.
-    Your task is to take the provided code, language, and standard input (if any), simulate its execution, and return the exact output.
-    - If the code compiles and runs successfully, return only the standard output.
+    Your task is to take the provided code and language, simulate its execution, and return the exact output.
+    - If the code requires input from the user (e.g., waiting for 'input()' in Python), you must ask the user for the input.
+    - After the user provides the input, continue the execution and produce the final output.
+    - If the code compiles and runs successfully without needing input, return only the standard output.
     - If there are compilation or runtime errors, return only the error messages.
-    - Do not add any extra explanations, greetings, or formatting. Only return the raw output as a string.
+    - Do not add any extra explanations, greetings, or formatting. Only return the raw output or a prompt for input.
 
     Language: {{{language}}}
     Code:
     \'\'\'
     {{{code}}}
     \'\'\'
-    {{#if stdin}}
-    Standard Input:
-    \'\'\'
-    {{{stdin}}}
-    \'\'\'
-    {{/if}}
   `,
 });
 
