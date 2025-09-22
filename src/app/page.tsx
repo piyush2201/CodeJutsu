@@ -96,8 +96,8 @@ export default function Home() {
         onDownload={handleDownload}
         isCompiling={isCompiling}
       />
-      <main className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 overflow-hidden">
-        <div className="flex flex-col gap-4">
+      <main className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+        <div className="flex flex-col gap-4 flex-[3]">
             <h2 className="text-lg font-semibold px-1">Code Editor</h2>
             <Separator />
             <div className="rounded-lg border overflow-hidden shadow-md flex-1">
@@ -110,16 +110,14 @@ export default function Home() {
             </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-            <div className="flex flex-col flex-1 gap-2">
-                <h2 className="text-lg font-semibold px-1">Output</h2>
-                <Separator />
-                <ScrollArea className="flex-1 p-4 rounded-lg border bg-muted/20 shadow-inner">
-                    <pre className="text-sm font-code whitespace-pre-wrap">
-                    {output || "Output will be displayed here."}
-                    </pre>
-                </ScrollArea>
-            </div>
+        <div className="flex flex-col gap-2 flex-[2]">
+            <h2 className="text-lg font-semibold px-1">Output</h2>
+            <Separator />
+            <ScrollArea className="flex-1 p-4 rounded-lg border bg-muted/20 shadow-inner">
+                <pre className="text-sm font-code whitespace-pre-wrap">
+                {output || "Output will be displayed here."}
+                </pre>
+            </ScrollArea>
         </div>
       </main>
     </div>
