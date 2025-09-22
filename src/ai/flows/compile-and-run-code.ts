@@ -2,7 +2,7 @@
 /**
  * @fileOverview This file defines a Genkit flow for compiling and running code snippets.
  *
- * - compileAndRunCode - A function that takes code and language as input, and returns the output of the code execution.
+ * - compileAndRunCode - A function that takes code, language, and optional stdin as input, and returns the output of the code execution.
  * - CompileAndRunCodeInput - The input type for the compileAndRunCode function.
  * - CompileAndRunCodeOutput - The return type for the compileAndRunCode function.
  */
@@ -13,6 +13,7 @@ import {z} from 'genkit';
 const CompileAndRunCodeInputSchema = z.object({
   code: z.string().describe('The code to be compiled and run.'),
   language: z.enum(['python', 'java', 'cpp', 'c']).describe('The programming language of the code.'),
+  stdin: z.string().optional().describe('The standard input to provide to the code.'),
 });
 export type CompileAndRunCodeInput = z.infer<typeof CompileAndRunCodeInputSchema>;
 
@@ -31,7 +32,7 @@ const compilationPrompt = ai.definePrompt({
   output: { schema: CompileAndRunCodeOutputSchema },
   prompt: `
     You are a code compiler and runtime environment.
-    Your task is to take the provided code and language, simulate its execution, and return the exact output.
+    Your task is to take the provided code, language, and standard input (if any), simulate its execution, and return the exact output.
     - If the code compiles and runs successfully, return only the standard output.
     - If there are compilation or runtime errors, return only the error messages.
     - Do not add any extra explanations, greetings, or formatting. Only return the raw output as a string.
@@ -41,6 +42,12 @@ const compilationPrompt = ai.definePrompt({
     \'\'\'
     {{{code}}}
     \'\'\'
+    {{#if stdin}}
+    Standard Input:
+    \'\'\'
+    {{{stdin}}}
+    \'\'\'
+    {{/if}}
   `,
 });
 

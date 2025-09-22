@@ -7,18 +7,20 @@ import { CodeEditor } from "@/components/code-editor";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 const defaultCode: Record<Language, string> = {
-  python: 'def main():\n    print("Hello from Python!")\n\nif __name__ == "__main__":\n    main()',
-  java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello from Java!");\n    }\n}',
-  cpp: '#include <iostream>\n\nint main() {\n    std::cout << "Hello from C++!" << std::endl;\n    return 0;\n}',
-  c: '#include <stdio.h>\n\nint main() {\n    printf("Hello from C!\\n");\n    return 0;\n}',
+  python: 'name = input("Enter your name: ")\nprint(f"Hello, {name}!")',
+  java: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        System.out.print("Enter your name: ");\n        String name = scanner.nextLine();\n        System.out.println("Hello, " + name + "!");\n        scanner.close();\n    }\n}',
+  cpp: '#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "Enter your name: ";\n    std::getline(std::cin, name);\n    std::cout << "Hello, " << name << "!" << std::endl;\n    return 0;\n}',
+  c: '#include <stdio.h>\n\nint main() {\n    char name[50];\n    printf("Enter your name: ");\n    fgets(name, 50, stdin);\n    printf("Hello, %s", name);\n    return 0;\n}',
 };
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>("python");
   const [theme, setTheme] = useState<Theme>("vs-dark");
   const [code, setCode] = useState<string>(defaultCode.python);
+  const [stdin, setStdin] = useState<string>("");
   const [output, setOutput] = useState<string>("");
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
   const { toast } = useToast();
@@ -27,6 +29,7 @@ export default function Home() {
     setLanguage(lang);
     setCode(defaultCode[lang]);
     setOutput(""); // Clear output when language changes
+    setStdin(""); // Clear input when language changes
   };
 
   const handleCodeChange = (value: string | undefined) => {
@@ -45,7 +48,7 @@ export default function Home() {
     setIsCompiling(true);
     setOutput("Compiling and running...");
     try {
-      const result = await compileAndRunCode({ code, language });
+      const result = await compileAndRunCode({ code, language, stdin });
       setOutput(result.output);
     } catch (error) {
       const errorMessage =
@@ -94,23 +97,40 @@ export default function Home() {
         onDownload={handleDownload}
         isCompiling={isCompiling}
       />
-      <main className="flex-1 grid grid-rows-2 gap-4 p-4 overflow-hidden">
-        <div className="rounded-lg border overflow-hidden shadow-md">
-          <CodeEditor
-            language={language}
-            theme={theme}
-            value={code}
-            onChange={handleCodeChange}
-          />
+      <main className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 overflow-hidden">
+        <div className="flex flex-col gap-4">
+            <h2 className="text-lg font-semibold px-1">Code Editor</h2>
+            <Separator />
+            <div className="rounded-lg border overflow-hidden shadow-md flex-1">
+              <CodeEditor
+                language={language}
+                theme={theme}
+                value={code}
+                onChange={handleCodeChange}
+              />
+            </div>
         </div>
-        <div className="flex flex-col">
-          <h2 className="text-lg font-semibold mb-2 px-1">Output</h2>
-          <Separator className="mb-2"/>
-          <ScrollArea className="flex-1 p-4 rounded-lg border bg-muted/20 shadow-inner">
-            <pre className="text-sm font-code whitespace-pre-wrap">
-              {output || "Output will be displayed here."}
-            </pre>
-          </ScrollArea>
+
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+                <h2 className="text-lg font-semibold px-1">Input (stdin)</h2>
+                <Separator />
+                <Textarea
+                    value={stdin}
+                    onChange={(e) => setStdin(e.target.value)}
+                    placeholder="Provide standard input to your program here."
+                    className="h-32 font-code"
+                />
+            </div>
+            <div className="flex flex-col flex-1 gap-2">
+                <h2 className="text-lg font-semibold px-1">Output</h2>
+                <Separator />
+                <ScrollArea className="flex-1 p-4 rounded-lg border bg-muted/20 shadow-inner">
+                    <pre className="text-sm font-code whitespace-pre-wrap">
+                    {output || "Output will be displayed here."}
+                    </pre>
+                </ScrollArea>
+            </div>
         </div>
       </main>
     </div>
