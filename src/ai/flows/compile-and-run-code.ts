@@ -25,35 +25,25 @@ export async function compileAndRunCode(input: CompileAndRunCodeInput): Promise<
   return compileAndRunCodeFlow(input);
 }
 
-const executeCode = ai.defineTool(
-  {
-    name: 'executeCode',
-    description: 'Executes code in a specified language and returns the output.',
-    inputSchema: z.object({
-      code: z.string().describe('The code to execute.'),
-      language: z.enum(['python', 'java', 'cpp', 'c']).describe('The programming language of the code.'),
-    }),
-    outputSchema: z.string().describe('The output of the code execution, including any errors.'),
-  },
-  async input => {
-    // TODO: Implement secure code execution here using a sandboxed environment.
-    // This is a placeholder and needs to be replaced with a real implementation.
-    console.log(
-      `Executing code: ${input.code} in language: ${input.language}`
-    );
-    if (input.language === 'python') {
-      return `Python execution stub for ${input.code}`;
-    } else if (input.language === 'java') {
-      return `Java execution stub for ${input.code}`;
-    } else if (input.language === 'cpp') {
-      return `C++ execution stub for ${input.code}`;
-    } else if (input.language === 'c') {
-      return `C execution stub for ${input.code}`;
-    } else {
-      return 'Unsupported language.';
-    }
-  }
-);
+const compilationPrompt = ai.definePrompt({
+  name: 'compilationPrompt',
+  input: { schema: CompileAndRunCodeInputSchema },
+  output: { schema: CompileAndRunCodeOutputSchema },
+  prompt: `
+    You are a code compiler and runtime environment.
+    Your task is to take the provided code and language, simulate its execution, and return the exact output.
+    - If the code compiles and runs successfully, return only the standard output.
+    - If there are compilation or runtime errors, return only the error messages.
+    - Do not add any extra explanations, greetings, or formatting. Only return the raw output as a string.
+
+    Language: {{{language}}}
+    Code:
+    \'\'\'
+    {{{code}}}
+    \'\'\'
+  `,
+});
+
 
 const compileAndRunCodeFlow = ai.defineFlow(
   {
@@ -62,7 +52,7 @@ const compileAndRunCodeFlow = ai.defineFlow(
     outputSchema: CompileAndRunCodeOutputSchema,
   },
   async input => {
-    const output = await executeCode(input);
-    return {output};
+    const { output } = await compilationPrompt(input);
+    return output!;
   }
 );
