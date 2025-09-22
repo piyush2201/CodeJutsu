@@ -46,10 +46,11 @@ export default function Home() {
       return;
     }
     setIsCompiling(true);
-    setOutput("Compiling and running...");
+    const initialOutput = stdin ? `> ${stdin}\n\n` : '';
+    setOutput(initialOutput + "Compiling and running...");
     try {
       const result = await compileAndRunCode({ code, language, stdin });
-      setOutput(result.output);
+      setOutput(initialOutput + result.output);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
