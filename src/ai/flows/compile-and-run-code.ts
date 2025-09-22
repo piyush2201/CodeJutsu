@@ -60,10 +60,7 @@ const prompt = ai.definePrompt({
   tools: [executeCode],
   input: {schema: CompileAndRunCodeInputSchema},
   output: {schema: CompileAndRunCodeOutputSchema},
-  prompt: `Execute the provided code in the specified language using the executeCode tool and return only the output.
-Language: {{{language}}}
-Code:
-{{{code}}}`,
+  prompt: `Execute the provided code in the specified language using the executeCode tool.`,
 });
 
 const compileAndRunCodeFlow = ai.defineFlow(
