@@ -121,14 +121,14 @@ export default function Home() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `codezero-code${fileExtensions[language]}`;
+    a.download = `codejutsu-code${fileExtensions[language]}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast({
       title: "Downloaded",
-      description: `Your code has been downloaded as codezero-code${fileExtensions[language]}.`,
+      description: `Your code has been downloaded as codejutsu-code${fileExtensions[language]}.`,
     });
   };
 

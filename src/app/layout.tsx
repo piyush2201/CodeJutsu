@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'CodeZero',
+  title: 'CodeJutsu',
   description: 'A VS Code-like coding platform to compile and run code.',
 };
 
