@@ -17,8 +17,9 @@ import { useToast } from "@/hooks/use-toast";
 import { assistWithCode } from "@/ai/flows/assist-code";
 import type { Language } from "./header";
 import { CodeEditor } from "./code-editor";
-import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
+import { Card, CardContent } from "./ui/card";
+import { cn } from "@/lib/utils";
 
 interface AiAssistProps {
   code: string;
@@ -26,12 +27,20 @@ interface AiAssistProps {
   onCodeUpdate: (newCode: string) => void;
 }
 
+const languages: { value: Language; label: string }[] = [
+  { value: "python", label: "Python" },
+  { value: "java", label: "Java" },
+  { value: "cpp", label: "C++" },
+  { value: "c", label: "C" },
+];
+
 export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [request, setRequest] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -43,12 +52,20 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
       });
       return;
     }
+    if (!selectedLanguage) {
+        toast({
+            title: "No language selected",
+            description: "Please select a language to generate code for.",
+            variant: "destructive",
+        });
+        return;
+    }
     setIsGenerating(true);
     setGeneratedCode(null);
     try {
       const result = await assistWithCode({
-        code,
-        language,
+        code: selectedLanguage === language ? code : `// Please generate code in ${selectedLanguage}`,
+        language: selectedLanguage,
         request,
       });
       setGeneratedCode(result.code);
@@ -61,7 +78,6 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
           `An error occurred while generating code: ${errorMessage}`,
         variant: "destructive",
       });
-      // Stay in the request view if there's an error
       setGeneratedCode(null);
     } finally {
       setIsGenerating(false);
@@ -98,11 +114,11 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
     setRequest("");
     setGeneratedCode(null);
     setIsGenerating(false);
+    setSelectedLanguage(null);
   };
   
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      // Reset state when dialog is closed, e.g. by pressing Esc
       resetAndClose();
     } else {
       setIsOpen(true);
@@ -118,13 +134,31 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[80vw] lg:max-w-[60vw] h-[80vh] flex flex-col">
-        {!generatedCode && (
+        {!selectedLanguage && !generatedCode && (
+            <>
+                <DialogHeader>
+                    <DialogTitle>Select a Language</DialogTitle>
+                    <DialogDescription>
+                        Which programming language do you want to generate code for?
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-4 py-4">
+                    {languages.map((lang) => (
+                        <Card key={lang.value} className={cn("cursor-pointer hover:bg-muted/50", selectedLanguage === lang.value && "border-primary ring-2 ring-primary")} onClick={() => setSelectedLanguage(lang.value)}>
+                            <CardContent className="flex items-center justify-center p-6">
+                                <h3 className="text-lg font-semibold">{lang.label}</h3>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </>
+        )}
+        {selectedLanguage && !generatedCode && (
           <>
             <DialogHeader>
-              <DialogTitle>AI Code Assistant</DialogTitle>
+              <DialogTitle>AI Code Assistant for {selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1)}</DialogTitle>
               <DialogDescription>
-                Describe the changes you want to make to your code. The AI will
-                generate a new version for you.
+                Describe the changes you want to make. The AI will generate a new version for you.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 flex-1">
@@ -136,7 +170,8 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
                 disabled={isGenerating}
               />
             </div>
-            <DialogFooter>
+            <DialogFooter className="items-center">
+               <Button variant="ghost" onClick={() => setSelectedLanguage(null)}>Back to language selection</Button>
               <Button
                 type="submit"
                 onClick={handleGenerate}
@@ -171,7 +206,7 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
                 <Separator />
                 <div className="rounded-lg border overflow-hidden flex-1">
                   <CodeEditor 
-                    language={language}
+                    language={selectedLanguage!}
                     theme="vs-dark"
                     value={generatedCode}
                     onChange={() => {}} // Readonly
