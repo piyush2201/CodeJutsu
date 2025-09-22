@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Paperclip } from "lucide-react";
 
 const defaultCode: Record<Language, string> = {
-  python: 'name = input("Enter your name: ")\nprint(f"Hello, {name}!")',
+  python: 'import time\n\nprint("--- Countdown Timer ---")\nwhile True:\n    try:\n        num_str = input("Enter a positive number to count down from: ")\n        num = int(num_str)\n        if num <= 0:\n            print("Please enter a positive number.")\n            continue\n\n        for i in range(num, 0, -1):\n            print(f"{i}...")\n            time.sleep(1)\n        print("Blast off! 🚀")\n        break\n    except ValueError:\n        print("That\'s not a valid number. Please try again.")',
   java: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        System.out.print("Enter your name: ");\n        String name = scanner.nextLine();\n        System.out.println("Hello, " + name + "!");\n        scanner.close();\n    }\n}',
   cpp: '#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "Enter your name: ";\n    std::getline(std::cin, name);\n    std::cout << "Hello, " << name << "!" << std::endl;\n    return 0;\n}',
   c: '#include <stdio.h>\n\nint main() {\n    char name[50];\n    printf("Enter your name: ");\n    fgets(name, 50, stdin);\n    printf("Hello, %s", name);\n    return 0;\n}',
@@ -52,10 +52,10 @@ export default function Home() {
     setIsCompiling(true);
     setIsWaitingForInput(false); // Hide input field during compilation
 
-    let newOutput = "";
+    let newOutput = output;
     // Append user input to output to simulate terminal interaction
     if (currentStdin) {
-      newOutput = `${output}${currentStdin}\n`;
+      newOutput += `${currentStdin}\n`;
     } else {
       // Clear output for new run
       newOutput = "";
@@ -195,4 +195,3 @@ export default function Home() {
       </main>
     </div>
   );
-}
