@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, KeyboardEvent } from "react";
 import { Sparkles, Loader2, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,6 +129,13 @@ export function AiAssist({ code, language, onCodeUpdate, onLanguageChange }: AiA
     }
   }
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleGenerate();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -172,6 +179,7 @@ export function AiAssist({ code, language, onCodeUpdate, onLanguageChange }: AiA
                 onChange={(e) => setRequest(e.target.value)}
                 className="h-full resize-none"
                 disabled={isGenerating}
+                onKeyDown={handleKeyDown}
               />
             </div>
             <DialogFooter className="items-center">
