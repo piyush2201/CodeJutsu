@@ -4,6 +4,7 @@ import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { compileAndRunCode } from "@/ai/flows/compile-and-run-code";
 import { Header, type Language, type Theme } from "@/components/header";
 import { CodeEditor } from "@/components/code-editor";
+import { AiAssist } from "@/components/ai-assist";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -192,6 +193,7 @@ export default function Home() {
 
   const handleSubmitInput = () => {
     if (stdin.trim()) {
+      setOutput((prev) => prev + stdin + "\n");
       setIsWaitingForInput(false);
       handleCompile(stdin);
     }
@@ -255,55 +257,68 @@ export default function Home() {
       <main className="flex-1 flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
           <ResizablePanel defaultSize={isCallActive ? 75 : 100}>
-            <div className="flex flex-col h-full gap-4 p-4">
-                <div className="flex flex-col gap-4 flex-[3]">
-                    <h2 className="text-lg font-semibold px-1">Code Editor</h2>
+            <div className="flex flex-col h-full">
+              <ResizablePanelGroup direction="vertical">
+                <ResizablePanel defaultSize={60}>
+                  <div className="flex flex-col h-full gap-4 p-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-semibold px-1">Code Editor</h2>
+                      <AiAssist 
+                        code={code}
+                        language={language}
+                        onCodeUpdate={setCode}
+                      />
+                    </div>
                     <Separator />
                     <div className="rounded-lg border overflow-hidden shadow-md flex-1">
-                    <CodeEditor
+                      <CodeEditor
                         language={language}
                         theme={theme}
                         value={code}
                         onChange={handleCodeChange}
-                    />
+                      />
                     </div>
-                </div>
-
-                <div className="flex flex-col gap-2 flex-[2]">
-                    <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold px-1">Output</h2>
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={40}>
+                  <div className="flex flex-col h-full gap-2 p-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold px-1">Output</h2>
+                      </div>
+                      <Separator />
+                      <div className="flex flex-col flex-1 gap-2">
+                        <ScrollArea className="flex-1 p-4 rounded-lg border bg-muted/20 shadow-inner">
+                          <pre className="text-sm font-code whitespace-pre-wrap">
+                            {output || "Output will be displayed here."}
+                          </pre>
+                        </ScrollArea>
+                        {isWaitingForInput && (
+                          <div className="relative">
+                            <Textarea
+                              placeholder="Type your input here..."
+                              className="w-full pr-28 font-code"
+                              value={stdin}
+                              onChange={(e) => setStdin(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              disabled={isCompiling}
+                              rows={1}
+                            />
+                            <Button
+                              className="absolute right-2 top-1/2 -translate-y-1/2"
+                              size="sm"
+                              onClick={handleSubmitInput}
+                              disabled={isCompiling}
+                            >
+                              <Paperclip className="mr-2" />
+                              Submit
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <Separator />
-                    <div className="flex flex-col flex-1 gap-2">
-                    <ScrollArea className="flex-1 p-4 rounded-lg border bg-muted/20 shadow-inner">
-                        <pre className="text-sm font-code whitespace-pre-wrap">
-                        {output || "Output will be displayed here."}
-                        </pre>
-                    </ScrollArea>
-                    {isWaitingForInput && (
-                        <div className="relative">
-                        <Textarea
-                            placeholder="Type your input here..."
-                            className="w-full pr-28 font-code"
-                            value={stdin}
-                            onChange={(e) => setStdin(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            disabled={isCompiling}
-                            rows={1}
-                        />
-                        <Button
-                            className="absolute right-2 top-1/2 -translate-y-1/2"
-                            size="sm"
-                            onClick={handleSubmitInput}
-                            disabled={isCompiling}
-                        >
-                            <Paperclip className="mr-2" />
-                            Submit
-                        </Button>
-                        </div>
-                    )}
-                    </div>
-                </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             </div>
           </ResizablePanel>
           {isCallActive && (
@@ -357,5 +372,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
