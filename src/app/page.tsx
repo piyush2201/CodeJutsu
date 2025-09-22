@@ -50,7 +50,7 @@ export default function Home() {
       return;
     }
     setIsCompiling(true);
-    setIsWaitingForInput(false);
+    setIsWaitingForInput(false); // Hide input field during compilation
 
     // Append user input to output to simulate terminal interaction
     if (currentStdin) {
@@ -94,6 +94,7 @@ export default function Home() {
 
   const handleSubmitInput = () => {
     if(stdin.trim()){
+      setIsWaitingForInput(false); // Hide after input
       // The `handleCompile` function is now used to send subsequent inputs as well.
       // The AI flow is designed to handle this statefully.
       setOutput(prev => `${prev}${stdin}\n`);
