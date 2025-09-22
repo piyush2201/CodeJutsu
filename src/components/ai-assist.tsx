@@ -25,6 +25,7 @@ interface AiAssistProps {
   code: string;
   language: Language;
   onCodeUpdate: (newCode: string) => void;
+  onLanguageChange: (newLanguage: Language) => void;
 }
 
 const languages: { value: Language; label: string }[] = [
@@ -34,7 +35,7 @@ const languages: { value: Language; label: string }[] = [
   { value: "c", label: "C" },
 ];
 
-export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
+export function AiAssist({ code, language, onCodeUpdate, onLanguageChange }: AiAssistProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [request, setRequest] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -85,7 +86,10 @@ export function AiAssist({ code, language, onCodeUpdate }: AiAssistProps) {
   };
 
   const handleAccept = () => {
-    if (generatedCode) {
+    if (generatedCode && selectedLanguage) {
+      if (selectedLanguage !== language) {
+        onLanguageChange(selectedLanguage);
+      }
       onCodeUpdate(generatedCode);
       toast({
         title: "Code Updated",

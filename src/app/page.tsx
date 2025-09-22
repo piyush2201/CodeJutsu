@@ -144,8 +144,11 @@ export default function Home() {
       conversation = "";
     }
 
-    currentOutput += "Compiling and running...\n";
-    setOutput(currentOutput);
+    if (!currentStdin) {
+      currentOutput += "Compiling and running...\n";
+      setOutput(currentOutput);
+    }
+
 
     try {
       const result = await compileAndRunCode({
@@ -193,7 +196,6 @@ export default function Home() {
 
   const handleSubmitInput = () => {
     if (stdin.trim()) {
-      setOutput((prev) => prev + stdin + "\n");
       setIsWaitingForInput(false);
       handleCompile(stdin);
     }
@@ -267,6 +269,7 @@ export default function Home() {
                         code={code}
                         language={language}
                         onCodeUpdate={setCode}
+                        onLanguageChange={handleLanguageChange}
                       />
                     </div>
                     <Separator />
