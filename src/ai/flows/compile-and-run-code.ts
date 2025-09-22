@@ -55,14 +55,6 @@ const executeCode = ai.defineTool(
   }
 );
 
-const prompt = ai.definePrompt({
-  name: 'compileAndRunCodePrompt',
-  tools: [executeCode],
-  input: {schema: CompileAndRunCodeInputSchema},
-  output: {schema: CompileAndRunCodeOutputSchema},
-  prompt: `Execute the provided code in the specified language using the executeCode tool.`,
-});
-
 const compileAndRunCodeFlow = ai.defineFlow(
   {
     name: 'compileAndRunCodeFlow',
@@ -70,7 +62,7 @@ const compileAndRunCodeFlow = ai.defineFlow(
     outputSchema: CompileAndRunCodeOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    const output = await executeCode(input);
+    return {output};
   }
 );
