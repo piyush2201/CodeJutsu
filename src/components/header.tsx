@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Download, Loader2, Code2 } from "lucide-react";
+import { Play, Download, Loader2, Code2, Video, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "./ui/separator";
 
 export type Language = "python" | "java" | "cpp" | "c";
 export type Theme = "vs-dark" | "light";
@@ -21,6 +22,8 @@ interface HeaderProps {
   onCompile: () => void;
   onDownload: () => void;
   isCompiling: boolean;
+  onVideoCallToggle: () => void;
+  isCallActive: boolean;
 }
 
 const languages: { value: Language; label: string }[] = [
@@ -43,6 +46,8 @@ export function Header({
   onCompile,
   onDownload,
   isCompiling,
+  onVideoCallToggle,
+  isCallActive
 }: HeaderProps) {
   return (
     <header className="flex items-center justify-between p-3 border-b bg-background shadow-sm">
@@ -53,6 +58,11 @@ export function Header({
         </h1>
       </div>
       <div className="flex items-center gap-4">
+        <Button onClick={onVideoCallToggle} variant={isCallActive ? "destructive" : "outline"}>
+          {isCallActive ? <PhoneOff className="mr-2" /> : <Video className="mr-2" />}
+          {isCallActive ? "End Call" : "Start Video Call"}
+        </Button>
+        <Separator orientation="vertical" className="h-8" />
         <Select value={language} onValueChange={(value) => onLanguageChange(value as Language)}>
           <SelectTrigger className="w-[120px]">
             <SelectValue placeholder="Language" />
