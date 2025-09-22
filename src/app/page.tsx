@@ -52,25 +52,27 @@ export default function Home() {
     setIsCompiling(true);
     setIsWaitingForInput(false); // Hide input field during compilation
 
+    let newOutput = "";
     // Append user input to output to simulate terminal interaction
     if (currentStdin) {
-      setOutput(prev => `${prev}${currentStdin}\n`);
+      newOutput = `${output}${currentStdin}\n`;
     } else {
       // Clear output for new run
-      setOutput("");
+      newOutput = "";
     }
     
     // Add a marker for compiling
-    setOutput(prev => prev + "Compiling and running...\n");
+    newOutput += "Compiling and running...\n";
+    setOutput(newOutput);
 
 
     try {
-      const result = await compileAndRunCode({ code, language, stdin: currentStdin });
-      const newOutput = result.output;
+      const result = await compileAndRunCode({ code, language, stdin: currentStdin, conversation: output });
+      const resultOutput = result.output;
       
-      setOutput(prev => prev.replace("Compiling and running...\n", "") + newOutput);
+      setOutput(prev => prev.replace("Compiling and running...\n", "") + resultOutput);
 
-      if (newOutput.toLowerCase().includes("enter") || newOutput.toLowerCase().includes("input")) {
+      if (resultOutput.toLowerCase().includes("enter") || resultOutput.toLowerCase().includes("input")) {
         setIsWaitingForInput(true);
       } else {
         setIsWaitingForInput(false);
@@ -97,7 +99,6 @@ export default function Home() {
       setIsWaitingForInput(false); // Hide after input
       // The `handleCompile` function is now used to send subsequent inputs as well.
       // The AI flow is designed to handle this statefully.
-      setOutput(prev => `${prev}${stdin}\n`);
       handleCompile(stdin);
     }
   };

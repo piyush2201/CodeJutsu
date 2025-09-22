@@ -14,6 +14,7 @@ const CompileAndRunCodeInputSchema = z.object({
   code: z.string().describe('The code to be compiled and run.'),
   language: z.enum(['python', 'java', 'cpp', 'c']).describe('The programming language of the code.'),
   stdin: z.string().optional().describe('The standard input to provide to the code.'),
+  conversation: z.string().optional().describe('The previous conversation history.'),
 });
 export type CompileAndRunCodeInput = z.infer<typeof CompileAndRunCodeInputSchema>;
 
@@ -32,18 +33,29 @@ const compilationPrompt = ai.definePrompt({
   output: { schema: CompileAndRunCodeOutputSchema },
   prompt: `
     You are a code compiler and runtime environment.
-    Your task is to take the provided code and language, simulate its execution, and return the exact output.
-    - If the code requires input from the user (e.g., waiting for 'input()' in Python), you must ask the user for the input.
-    - After the user provides the input, continue the execution and produce the final output.
-    - If the code compiles and runs successfully without needing input, return only the standard output.
+    Your task is to take the provided code, language, and conversation history, simulate its execution, and return the next part of the output.
+    
+    - If the code requires input and the user has just provided it in 'stdin', continue execution and produce the next output.
+    - If the code is just starting and requires input (e.g., waiting for 'input()' in Python), prompt the user for the input.
+    - If the code runs to completion without needing input, return only the standard output.
     - If there are compilation or runtime errors, return only the error messages.
     - Do not add any extra explanations, greetings, or formatting. Only return the raw output or a prompt for input.
-
+    
+    Here is the previous conversation, including any prompts for input and the user's replies. Use this to understand the current state of the execution:
+    \'\'\'
+    {{{conversation}}}
+    \'\'\'
+    
     Language: {{{language}}}
     Code:
     \'\'\'
     {{{code}}}
     \'\'\'
+    
+    {{#if stdin}}
+    The user has just provided this input: {{{stdin}}}
+    Continue execution.
+    {{/if}}
   `,
 });
 
