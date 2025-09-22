@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Paperclip, Phone, Video } from "lucide-react";
+import { Paperclip, Phone, Video, Mic, MicOff, VideoOff } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/resizable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Toggle } from "@/components/ui/toggle";
 
 const defaultCode: Record<Language, string> = {
   python: 'import time\n\nprint("--- Countdown Timer ---")\nwhile True:\n    try:\n        num_str = input("Enter a positive number to count down from: ")\n        num = int(num_str)\n        if num <= 0:\n            print("Please enter a positive number.")\n            continue\n\n        for i in range(num, 0, -1):\n            print(f"{i}...")\n            time.sleep(1)\n        print("Blast off! 🚀")\n        break\n    except ValueError:\n        print("That\'s not a valid number. Please try again.")',
@@ -35,41 +36,77 @@ export default function Home() {
   const [isWaitingForInput, setIsWaitingForInput] = useState<boolean>(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
+    const cleanupStream = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        setHasCameraPermission(null);
+    }
+    
     if (isCallActive) {
       const getCameraPermission = async () => {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          streamRef.current = stream;
           setHasCameraPermission(true);
+          setIsCameraOn(true);
+          setIsMicOn(true);
 
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
         } catch (error) {
-          console.error("Error accessing camera:", error);
+          console.error("Error accessing media devices:", error);
           setHasCameraPermission(false);
           toast({
             variant: "destructive",
-            title: "Camera Access Denied",
+            title: "Media Access Denied",
             description:
-              "Please enable camera permissions in your browser settings to use the video call feature.",
+              "Please enable camera and microphone permissions in your browser settings.",
           });
         }
       };
 
       getCameraPermission();
     } else {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-        }
-        setHasCameraPermission(null);
+        cleanupStream();
+    }
+    
+    return () => {
+        cleanupStream();
     }
   }, [isCallActive, toast]);
+  
+  const handleToggleCamera = () => {
+    if (streamRef.current) {
+      const videoTrack = streamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !isCameraOn;
+        setIsCameraOn(!isCameraOn);
+      }
+    }
+  };
+
+  const handleToggleMic = () => {
+    if (streamRef.current) {
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !isMicOn;
+        setIsMicOn(!isMicOn);
+      }
+    }
+  };
 
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
@@ -95,28 +132,35 @@ export default function Home() {
     setIsCompiling(true);
     setIsWaitingForInput(false);
 
-    let newOutput = output;
+    let conversation = output;
+    let currentOutput = output;
+    
     if (currentStdin) {
-      newOutput += `${currentStdin}\n`;
+      currentOutput += `${currentStdin}\n`;
+      conversation = currentOutput;
     } else {
-      newOutput = "";
+      currentOutput = "";
+      conversation = "";
     }
 
-    newOutput += "Compiling and running...\n";
-    setOutput(newOutput);
+    currentOutput += "Compiling and running...\n";
+    setOutput(currentOutput);
 
     try {
       const result = await compileAndRunCode({
         code,
         language,
         stdin: currentStdin,
-        conversation: output,
+        conversation: conversation,
       });
       const resultOutput = result.output;
+      
+      let finalOutput = currentOutput.replace("Compiling and running...\n", "") + resultOutput;
+      if (currentStdin) {
+        finalOutput = output + currentStdin + "\n" + resultOutput;
+      }
+      setOutput(finalOutput);
 
-      setOutput((prev) =>
-        prev.replace("Compiling and running...\n", "") + resultOutput
-      );
 
       if (
         resultOutput.toLowerCase().includes("enter") ||
@@ -240,7 +284,7 @@ export default function Home() {
                         <div className="relative">
                         <Textarea
                             placeholder="Type your input here..."
-                            className="w-full pr-20 font-code"
+                            className="w-full pr-28 font-code"
                             value={stdin}
                             onChange={(e) => setStdin(e.target.value)}
                             onKeyDown={handleKeyDown}
@@ -273,8 +317,13 @@ export default function Home() {
                   </CardHeader>
                   <CardContent className="h-full pt-2">
                     <div className="flex flex-col gap-4 h-full">
-                        <div className="w-full aspect-video rounded-md bg-muted overflow-hidden">
+                        <div className="relative w-full aspect-video rounded-md bg-muted overflow-hidden">
                            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                           {!isCameraOn && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
+                                <VideoOff className="w-12 h-12 text-muted-foreground" />
+                            </div>
+                           )}
                         </div>
                         {hasCameraPermission === false && (
                             <Alert variant="destructive">
@@ -283,6 +332,16 @@ export default function Home() {
                                     Please allow camera access to use this feature.
                                 </AlertDescription>
                             </Alert>
+                        )}
+                        {hasCameraPermission && (
+                             <div className="flex justify-center gap-2">
+                                <Toggle pressed={isCameraOn} onPressedChange={handleToggleCamera} aria-label="Toggle camera">
+                                    {isCameraOn ? <Video /> : <VideoOff />}
+                                </Toggle>
+                                <Toggle pressed={isMicOn} onPressedChange={handleToggleMic} aria-label="Toggle microphone">
+                                    {isMicOn ? <Mic /> : <MicOff />}
+                                </Toggle>
+                            </div>
                         )}
                          <div className="text-xs text-muted-foreground text-center">
                             Note: Full video call functionality requires a backend implementation. This is a UI preview.
@@ -298,3 +357,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
