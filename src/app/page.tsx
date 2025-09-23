@@ -394,7 +394,7 @@ export default function Home() {
                         theme={theme}
                         value={code}
                         onChange={handleCodeChange}
-                        placeholder="Write your code here..."
+                        placeholder="Write your code here......"
                       />
                     </div>
                   </div>
@@ -499,3 +499,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
