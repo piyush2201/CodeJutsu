@@ -21,6 +21,9 @@ import { Toggle } from "@/components/ui/toggle";
 import { database } from "@/lib/firebase";
 import { ref, onValue, set, onDisconnect, remove } from "firebase/database";
 import Image from "next/image";
+import { HistoryPanel, type HistoryEntry } from "@/components/history-panel";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+
 
 const defaultCode: Record<Language, string> = {
   python: ``,
@@ -49,6 +52,8 @@ export default function Home() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
+  const [history, setHistory] = useLocalStorage<HistoryEntry[]>("codejutsu-history", []);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -203,7 +208,7 @@ export default function Home() {
   };
 
   const handleCompile = async (currentStdin: string = "") => {
-    if (!code) {
+    if (!code.trim()) {
       toast({
         title: "No code to compile",
         description: "Please write some code in the editor before compiling.",
@@ -222,6 +227,13 @@ export default function Home() {
       currentOutput = `${output}\n${currentStdin}\n`;
       conversation = currentOutput;
     } else {
+      // This is a new run, save to history
+      const newHistoryEntry: HistoryEntry = {
+        code,
+        language,
+        timestamp: new Date().toISOString(),
+      };
+      setHistory([newHistoryEntry, ...history]);
       currentOutput = "Compiling and running...\n";
       conversation = "";
     }
@@ -369,6 +381,14 @@ export default function Home() {
     });
   }
 
+  const handleRestoreHistory = (entry: HistoryEntry) => {
+    setCode(entry.code);
+    setLanguage(entry.language);
+    toast({
+      title: "Code Restored",
+      description: "Loaded code from history into the editor.",
+    });
+  };
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -386,7 +406,15 @@ export default function Home() {
       />
       <main className="flex-1 flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel defaultSize={isCallActive ? 75 : 100}>
+           <ResizablePanel defaultSize={20} minSize={15}>
+            <HistoryPanel
+              history={history}
+              onRestore={handleRestoreHistory}
+              onClear={() => setHistory([])}
+            />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={isCallActive ? 55 : 80}>
             <div className="flex flex-col h-full">
               <ResizablePanelGroup direction="vertical">
                 <ResizablePanel defaultSize={60}>
