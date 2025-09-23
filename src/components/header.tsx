@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Download, Loader2, Code2 } from "lucide-react";
+import { Play, Download, Loader2, Code2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,9 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "./ui/separator";
+import { DevPilot } from "./dev-pilot";
 
 export type Language = "python" | "java" | "cpp" | "c";
-export type Theme = "vs-dark" | "light";
+export type Theme = "vs-dark" | "light" | "hc-black";
 
 interface HeaderProps {
   language: Language;
@@ -22,6 +23,9 @@ interface HeaderProps {
   onCompile: () => void;
   onDownload: () => void;
   isCompiling: boolean;
+  onVideoCallToggle: () => void;
+  onCodeUpdate: (code: string) => void;
+  code: string;
 }
 
 const languages: { value: Language; label: string }[] = [
@@ -34,6 +38,7 @@ const languages: { value: Language; label: string }[] = [
 const themes: { value: Theme; label: string }[] = [
   { value: "vs-dark", label: "Dark" },
   { value: "light", label: "Light" },
+  { value: "hc-black", label: "High Contrast" },
 ];
 
 export function Header({
@@ -44,6 +49,9 @@ export function Header({
   onCompile,
   onDownload,
   isCompiling,
+  onVideoCallToggle,
+  onCodeUpdate,
+  code,
 }: HeaderProps) {
   return (
     <header className="flex items-center justify-between p-3 border-b bg-background shadow-sm">
@@ -68,7 +76,7 @@ export function Header({
         </Select>
 
         <Select value={theme} onValueChange={(value) => onThemeChange(value as Theme)}>
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Theme" />
           </SelectTrigger>
           <SelectContent>
@@ -80,6 +88,20 @@ export function Header({
           </SelectContent>
         </Select>
         
+        <Separator orientation="vertical" className="h-8" />
+        
+        <Button onClick={onVideoCallToggle} variant="outline" size="sm" className="gap-2">
+           <Video />
+           Start Video Call
+        </Button>
+
+        <DevPilot
+          code={code}
+          language={language}
+          onCodeUpdate={onCodeUpdate}
+          onLanguageChange={onLanguageChange}
+        />
+
         <Separator orientation="vertical" className="h-8" />
 
         <Button onClick={onDownload} variant="outline" size="sm" className="gap-2">

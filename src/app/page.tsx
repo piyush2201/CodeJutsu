@@ -4,7 +4,6 @@ import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { compileAndRunCode, CompileAndRunCodeOutput } from "@/ai/flows/compile-and-run-code";
 import { Header, type Language, type Theme } from "@/components/header";
 import { CodeEditor } from "@/components/code-editor";
-import { DevPilot } from "@/components/dev-pilot";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -223,10 +222,9 @@ export default function Home() {
       currentOutput = `${output}\n${currentStdin}\n`;
       conversation = currentOutput;
     } else {
-      currentOutput = "Compiling and running...\n";
+      setOutput("Compiling and running...\n");
       conversation = "";
     }
-    setOutput(currentOutput);
 
 
     try {
@@ -266,7 +264,7 @@ export default function Home() {
         error instanceof Error ? error.message : "An unknown error occurred.";
       setOutput(
         (prev) =>
-          prev.replace("Compiling and running...\n", `Error: ${errorMessage}\n`)
+          prev.replace("Compiling and running...\n", "") + `Error: ${errorMessage}\n`
       );
       toast({
         title: "Execution Failed",
@@ -386,6 +384,9 @@ export default function Home() {
         onCompile={() => handleCompile()}
         onDownload={handleDownload}
         isCompiling={isCompiling}
+        onVideoCallToggle={handleVideoCallToggle}
+        code={code}
+        onCodeUpdate={setCode}
       />
       <main className="flex-1 flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
@@ -396,18 +397,6 @@ export default function Home() {
                   <div className="flex flex-col h-full gap-4 p-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-semibold px-1">Code Editor</h2>
-                      <div className="flex items-center gap-2">
-                         <Button onClick={() => handleVideoCallToggle()} variant="outline" size="sm" className="gap-2">
-                           <Video />
-                           Start Video Call
-                         </Button>
-                        <DevPilot
-                          code={code}
-                          language={language}
-                          onCodeUpdate={setCode}
-                          onLanguageChange={handleLanguageChange}
-                        />
-                      </div>
                     </div>
                     <Separator />
                     <div className="rounded-lg border overflow-hidden shadow-md flex-1">
