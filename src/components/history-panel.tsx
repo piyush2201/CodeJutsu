@@ -73,7 +73,7 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full p-6 pt-4">
-          {history.length === 0 ? (
+          {!isClient || history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-12">
                 <History className="w-16 h-16 mb-4"/>
                 <p className="text-sm">Your code execution history will appear here.</p>
@@ -90,7 +90,7 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
                     <div className="flex justify-between items-start mb-2">
                         <p className="font-semibold text-sm">{entry.name}</p>
                         <p className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                          {isClient ? formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true }) : new Date(entry.timestamp).toLocaleTimeString()}
+                          {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
                         </p>
                     </div>
                     <div className="flex justify-between items-end">
