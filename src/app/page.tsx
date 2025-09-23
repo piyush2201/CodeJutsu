@@ -29,6 +29,13 @@ const defaultCode: Record<Language, string> = {
   c: ``,
 };
 
+const placeholderText: Record<Language, string> = {
+  python: "Write your Python code here......",
+  java: "Write your Java code here......",
+  cpp: "Write your C++ code here......",
+  c: "Write your C code here......",
+};
+
 export default function Home() {
   const [language, setLanguage] = useState<Language>("python");
   const [theme, setTheme] = useState<Theme>("vs-dark");
@@ -394,7 +401,7 @@ export default function Home() {
                         theme={theme}
                         value={code}
                         onChange={handleCodeChange}
-                        placeholder="Write your code here......"
+                        placeholder={placeholderText[language]}
                       />
                     </div>
                   </div>
@@ -499,5 +506,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
