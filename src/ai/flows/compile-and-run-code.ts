@@ -31,6 +31,7 @@ const compilationPrompt = ai.definePrompt({
   name: 'compilationPrompt',
   input: { schema: CompileAndRunCodeInputSchema },
   output: { schema: CompileAndRunCodeOutputSchema },
+  model: 'googleai/gemini-2.5-flash',
   prompt: `
     You are a code compiler and runtime environment.
     Your task is to take the provided code, language, and conversation history, simulate its execution, and return the next part of the output.
