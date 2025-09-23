@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { type Language } from "./header";
 import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from "react";
 
 export type HistoryEntry = {
   name: string;
@@ -32,6 +33,12 @@ interface HistoryPanelProps {
 }
 
 export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <Card className="h-full flex flex-col m-4 mr-0">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -83,7 +90,7 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
                     <div className="flex justify-between items-start mb-2">
                         <p className="font-semibold text-sm">{entry.name}</p>
                         <p className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                            {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
+                          {isClient ? formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true }) : new Date(entry.timestamp).toLocaleTimeString()}
                         </p>
                     </div>
                     <div className="flex justify-between items-end">
@@ -103,5 +110,3 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
     </Card>
   );
 }
-
-    
