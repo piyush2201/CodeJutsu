@@ -14,12 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { assistWithCode } from "@/ai/flows/assist-code";
+import { assistWithCode, AssistWithCodeOutput } from "@/ai/flows/assist-code";
 import type { Language } from "./header";
 import { CodeEditor } from "./code-editor";
 import { Separator } from "./ui/separator";
 import { Card, CardContent } from "./ui/card";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface DevPilotProps {
   code: string;
@@ -39,7 +40,7 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
   const [isOpen, setIsOpen] = useState(false);
   const [request, setRequest] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [generatedResult, setGeneratedResult] = useState<AssistWithCodeOutput | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
   const { toast } = useToast();
@@ -62,14 +63,14 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
         return;
     }
     setIsGenerating(true);
-    setGeneratedCode(null);
+    setGeneratedResult(null);
     try {
       const result = await assistWithCode({
         code: selectedLanguage === language ? code : `// Please generate code in ${selectedLanguage}`,
         language: selectedLanguage,
         request,
       });
-      setGeneratedCode(result.code);
+      setGeneratedResult(result);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
@@ -79,18 +80,18 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
           `An error occurred while generating code: ${errorMessage}`,
         variant: "destructive",
       });
-      setGeneratedCode(null);
+      setGeneratedResult(null);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleAccept = () => {
-    if (generatedCode && selectedLanguage) {
+    if (generatedResult?.code && selectedLanguage) {
       if (selectedLanguage !== language) {
         onLanguageChange(selectedLanguage);
       }
-      onCodeUpdate(generatedCode);
+      onCodeUpdate(generatedResult.code);
       toast({
         title: "Code Updated",
         description: "DevPilot's suggestions have been applied to the editor.",
@@ -104,8 +105,10 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
   };
   
   const handleCopyToClipboard = () => {
-    if (!generatedCode) return;
-    navigator.clipboard.writeText(generatedCode);
+    if (!generatedResult) return;
+    const textToCopy = generatedResult.responseType === 'code' ? generatedResult.code : generatedResult.answer;
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
     setIsCopied(true);
     toast({
       title: "Copied to clipboard",
@@ -116,7 +119,7 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
   const resetAndClose = () => {
     setIsOpen(false);
     setRequest("");
-    setGeneratedCode(null);
+    setGeneratedResult(null);
     setIsGenerating(false);
     setSelectedLanguage(null);
   };
@@ -145,12 +148,12 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[80vw] lg:max-w-[60vw] h-[80vh] flex flex-col">
-        {!selectedLanguage && !generatedCode && (
+        {!selectedLanguage && !generatedResult && (
             <>
                 <DialogHeader>
                     <DialogTitle>Select a Language</DialogTitle>
                     <DialogDescription>
-                        Which programming language do you want to generate code for?
+                        Which programming language do you want to work with?
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
@@ -164,17 +167,17 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
                 </div>
             </>
         )}
-        {selectedLanguage && !generatedCode && (
+        {selectedLanguage && !generatedResult && (
           <>
             <DialogHeader>
               <DialogTitle>DevPilot for {selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1)}</DialogTitle>
               <DialogDescription>
-                Describe the changes you want to make. DevPilot will generate a new version for you.
+                Ask a question about the code, or describe the changes you want to make.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 flex-1">
               <Textarea
-                placeholder="e.g., 'Refactor this code to be more efficient' or 'Add error handling for the input'"
+                placeholder="e.g., 'Refactor this code to be more efficient' or 'Explain what this Python script does'"
                 value={request}
                 onChange={(e) => setRequest(e.target.value)}
                 className="h-full resize-none"
@@ -194,51 +197,63 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
                 ) : (
                   <Sparkles className="mr-2" />
                 )}
-                {isGenerating ? "Generating..." : "Generate Code"}
+                {isGenerating ? "Generating..." : "Generate"}
               </Button>
             </DialogFooter>
           </>
         )}
-        {generatedCode && !isGenerating && (
+        {generatedResult && !isGenerating && (
           <>
             <DialogHeader>
               <DialogTitle>DevPilot Suggestions</DialogTitle>
               <DialogDescription>
-                Review the code generated by DevPilot. Accept it to apply the changes to your editor.
+                {generatedResult.responseType === 'code' 
+                    ? "Review the code generated by DevPilot. Accept it to apply the changes to your editor."
+                    : "Here's the answer to your question."}
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 flex flex-col gap-4 py-4 overflow-hidden">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">Generated Code</h3>
+                    <h3 className="text-sm font-medium">
+                        {generatedResult.responseType === 'code' ? "Generated Code" : "Answer"}
+                    </h3>
                     <Button variant="ghost" size="sm" onClick={handleCopyToClipboard}>
                         {isCopied ? <ClipboardCheck className="mr-2"/> : <Clipboard className="mr-2"/>}
                         {isCopied ? "Copied" : "Copy"}
                     </Button>
                 </div>
                 <Separator />
-                <div className="rounded-lg border overflow-hidden flex-1">
-                  <CodeEditor 
-                    language={selectedLanguage!}
-                    theme="vs-dark"
-                    value={generatedCode}
-                    onChange={() => {}} // Readonly
-                    options={{ readOnly: true }}
-                  />
-                </div>
+                {generatedResult.responseType === 'code' && generatedResult.code ? (
+                    <div className="rounded-lg border overflow-hidden flex-1">
+                      <CodeEditor 
+                        language={selectedLanguage!}
+                        theme="vs-dark"
+                        value={generatedResult.code}
+                        onChange={() => {}} // Readonly
+                        options={{ readOnly: true }}
+                      />
+                    </div>
+                ) : (
+                    <ScrollArea className="rounded-lg border p-4 flex-1">
+                      <p className="text-sm whitespace-pre-wrap">{generatedResult.answer}</p>
+                    </ScrollArea>
+                )}
             </div>
             <DialogFooter>
                <Button variant="outline" onClick={handleDecline}>
                 <X className="mr-2" />
-                Decline
+                {generatedResult.responseType === 'code' ? "Decline" : "Close"}
               </Button>
-              <Button onClick={handleAccept}>
-                <Check className="mr-2" />
-                Accept
-              </Button>
+              {generatedResult.responseType === 'code' && (
+                <Button onClick={handleAccept}>
+                  <Check className="mr-2" />
+                  Accept
+                </Button>
+              )}
             </DialogFooter>
           </>
         )}
-         {isGenerating && generatedCode === null && (
+         {isGenerating && generatedResult === null && (
             <div className="flex flex-col items-center justify-center h-full gap-4">
                 <Loader2 className="w-16 h-16 animate-spin text-primary" />
                 <p className="text-muted-foreground">Generating suggestions...</p>

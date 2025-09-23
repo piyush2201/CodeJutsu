@@ -13,12 +13,14 @@ import {z} from 'genkit';
 const AssistWithCodeInputSchema = z.object({
   code: z.string().describe('The current code in the editor.'),
   language: z.string().describe('The programming language of the code.'),
-  request: z.string().describe('The user\'s natural language request for code modification.'),
+  request: z.string().describe('The user\'s natural language request for code modification or a question about the code.'),
 });
 export type AssistWithCodeInput = z.infer<typeof AssistWithCodeInputSchema>;
 
 const AssistWithCodeOutputSchema = z.object({
-  code: z.string().describe('The new, modified code block.'),
+  responseType: z.enum(['code', 'answer']).describe('The type of response. Is it a code modification or an answer to a question?'),
+  code: z.string().optional().describe('The new, modified code block. Only present if responseType is "code".'),
+  answer: z.string().optional().describe('A textual answer to a question about the code. Only present if responseType is "answer".'),
 });
 export type AssistWithCodeOutput = z.infer<typeof AssistWithCodeOutputSchema>;
 
@@ -31,10 +33,21 @@ const assistantPrompt = ai.definePrompt({
   input: { schema: AssistWithCodeInputSchema },
   output: { schema: AssistWithCodeOutputSchema },
   prompt: `
-    You are an expert AI coding assistant. Your task is to modify the provided code based on the user's request.
+    You are an expert AI coding assistant. Your task is to help the user with their code.
     Analyze the user's request and the existing code carefully.
-    Return the complete, updated code. Do not add any explanations, comments, or introductory text.
-    Only return the raw, modified code inside the 'code' field of the output.
+
+    1.  First, determine if the user is asking a **question** about the code (e.g., "what does this do?", "explain this", "how can I improve this?") or requesting a direct **code modification** (e.g., "add a function", "refactor this", "fix the bug").
+
+    2.  If the user is asking a **question**:
+        -   Set the 'responseType' to 'answer'.
+        -   Provide a clear, concise, and helpful explanation in the 'answer' field.
+        -   Do not provide any code in the 'code' field.
+
+    3.  If the user is requesting a **code modification**:
+        -   Set the 'responseType' to 'code'.
+        -   Return the complete, updated code in the 'code' field.
+        -   Do not add any explanations, comments, or introductory text in the 'code' field. Only return the raw, modified code.
+        -   Do not provide any text in the 'answer' field.
 
     Language: {{{language}}}
 
