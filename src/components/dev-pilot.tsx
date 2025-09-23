@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, KeyboardEvent } from "react";
-import { Sparkles, Loader2, Check, X, Clipboard, ClipboardCheck } from "lucide-react";
+import { Sparkles, Loader2, Check, X, Clipboard, ClipboardCheck, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -116,6 +116,23 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleDownloadNote = () => {
+    if (generatedResult?.responseType !== 'answer' || !generatedResult.answer) return;
+    const blob = new Blob([generatedResult.answer], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `devpilot-note.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Note Downloaded",
+      description: `Your note has been downloaded as devpilot-note.txt.`,
+    });
+  };
+
   const resetAndClose = () => {
     setIsOpen(false);
     setRequest("");
@@ -217,10 +234,18 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
                     <h3 className="text-sm font-medium">
                         {generatedResult.responseType === 'code' ? "Generated Code" : "Answer"}
                     </h3>
-                    <Button variant="ghost" size="sm" onClick={handleCopyToClipboard}>
-                        {isCopied ? <ClipboardCheck className="mr-2"/> : <Clipboard className="mr-2"/>}
-                        {isCopied ? "Copied" : "Copy"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {generatedResult.responseType === 'answer' && (
+                        <Button variant="ghost" size="sm" onClick={handleDownloadNote}>
+                          <Download className="mr-2"/>
+                          Download
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={handleCopyToClipboard}>
+                          {isCopied ? <ClipboardCheck className="mr-2"/> : <Clipboard className="mr-2"/>}
+                          {isCopied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
                 </div>
                 <Separator />
                 {generatedResult.responseType === 'code' && generatedResult.code ? (
