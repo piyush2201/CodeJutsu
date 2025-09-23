@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
-import { compileAndRunCode, CompileAndRunCodeOutput } from "@/ai/flows/compile-and-run-code";
+import { compileAndRunCode } from "@/ai/flows/compile-and-run-code";
 import { Header, type Language, type Theme } from "@/components/header";
 import { CodeEditor } from "@/components/code-editor";
 import { useToast } from "@/hooks/use-toast";
@@ -23,27 +23,10 @@ import { ref, onValue, set, onDisconnect, remove } from "firebase/database";
 import Image from "next/image";
 
 const defaultCode: Record<Language, string> = {
-  python: `import matplotlib.pyplot as plt
-import numpy as np
-
-# Data for the pie chart
-labels = ['Frogs', 'Hogs', 'Dogs', 'Logs']
-sizes = [15, 30, 45, 10]
-explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
-
-# Create a new figure and axes
-fig1, ax1 = plt.subplots()
-
-# Create the pie chart
-ax1.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%',
-        shadow=True, startangle=90)
-ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-
-# Display the plot
-plt.show()`,
-  java: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        System.out.print("Enter your name: ");\n        String name = scanner.nextLine();\n        System.out.println("Hello, " + name + "!");\n        scanner.close();\n    }\n}',
-  cpp: '#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "Enter your name: ";\n    std::getline(std::cin, name);\n    std::cout << "Hello, " << name << "!" << std::endl;\n    return 0;\n}',
-  c: '#include <stdio.h>\n\nint main() {\n    char name[50];\n    printf("Enter your name: ");\n    fgets(name, 50, stdin);\n    printf("Hello, %s", name);\n    return 0;\n}',
+  python: ``,
+  java: ``,
+  cpp: ``,
+  c: ``,
 };
 
 export default function Home() {
@@ -239,7 +222,7 @@ export default function Home() {
 
 
     try {
-      const result: CompileAndRunCodeOutput = await compileAndRunCode({
+      const result = await compileAndRunCode({
         code,
         language,
         stdin: currentStdin,
@@ -255,11 +238,6 @@ export default function Home() {
         finalOutput = resultOutput;
       }
       setOutput(finalOutput.replace("Compiling and running...\n", ""));
-
-
-      if (result.imageUrl) {
-        setImageUrl(result.imageUrl);
-      }
 
       if (
         resultOutput.toLowerCase().includes("enter") ||
@@ -416,6 +394,7 @@ export default function Home() {
                         theme={theme}
                         value={code}
                         onChange={handleCodeChange}
+                        placeholder="Write your code here..."
                       />
                     </div>
                   </div>

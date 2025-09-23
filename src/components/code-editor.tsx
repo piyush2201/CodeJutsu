@@ -19,6 +19,7 @@ interface CodeEditorProps {
   value: string;
   onChange: OnChange;
   options?: editor.IStandaloneEditorConstructionOptions;
+  placeholder?: string;
 }
 
 export function CodeEditor({
@@ -27,6 +28,7 @@ export function CodeEditor({
   value,
   onChange,
   options,
+  placeholder,
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
@@ -55,6 +57,7 @@ export function CodeEditor({
           automaticLayout: true,
           ...options,
         }}
+        path={placeholder} // Using path prop to show a placeholder
       />
     </div>
   );
