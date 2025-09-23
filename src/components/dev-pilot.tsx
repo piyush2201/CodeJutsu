@@ -159,9 +159,9 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Sparkles className="mr-2" />
-          DevPilot
+        <Button variant="outline" className="border-primary/50 text-primary hover:bg-primary/10 hover:text-primary gap-2">
+          <Sparkles />
+          Ask DevPilot
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[80vw] lg:max-w-[60vw] h-[80vh] flex flex-col">

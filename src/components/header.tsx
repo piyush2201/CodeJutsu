@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Download, Loader2, Code2, Video } from "lucide-react";
+import { Play, Download, Loader2, Code2, Video, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -61,6 +61,16 @@ export function Header({
           CodeJutsu
         </h1>
       </div>
+
+      <div className="flex-1 flex justify-center">
+         <DevPilot
+          code={code}
+          language={language}
+          onCodeUpdate={onCodeUpdate}
+          onLanguageChange={onLanguageChange}
+        />
+      </div>
+
       <div className="flex items-center gap-4">
         <Select value={language} onValueChange={(value) => onLanguageChange(value as Language)}>
           <SelectTrigger className="w-[120px]">
@@ -92,30 +102,21 @@ export function Header({
         
         <Button onClick={onVideoCallToggle} variant="outline" size="sm" className="gap-2">
            <Video />
-           Start Video Call
+           Start Call
         </Button>
-
-        <DevPilot
-          code={code}
-          language={language}
-          onCodeUpdate={onCodeUpdate}
-          onLanguageChange={onLanguageChange}
-        />
-
-        <Separator orientation="vertical" className="h-8" />
-
+        
         <Button onClick={onDownload} variant="outline" size="sm" className="gap-2">
           <Download />
           Download
         </Button>
 
-        <Button onClick={onCompile} disabled={isCompiling} size="sm" className="w-[160px] bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 gap-2">
+        <Button onClick={onCompile} disabled={isCompiling} size="sm" className="w-[110px] bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 gap-2">
           {isCompiling ? (
             <Loader2 className="animate-spin" />
           ) : (
             <Play />
           )}
-          {isCompiling ? "Compiling..." : "Compile & Run"}
+          {isCompiling ? "Running" : "Run"}
         </Button>
       </div>
     </header>
