@@ -2,6 +2,7 @@
 
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { compileAndRunCode } from "@/ai/flows/compile-and-run-code";
+import { nameCode } from "@/ai/flows/name-code";
 import { Header, type Language, type Theme } from "@/components/header";
 import { CodeEditor } from "@/components/code-editor";
 import { useToast } from "@/hooks/use-toast";
@@ -228,7 +229,9 @@ export default function Home() {
       conversation = currentOutput;
     } else {
       // This is a new run, save to history
+      const { name } = await nameCode({ code, language });
       const newHistoryEntry: HistoryEntry = {
+        name: name || "Untitled Snippet",
         code,
         language,
         timestamp: new Date().toISOString(),
@@ -534,7 +537,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    

@@ -19,6 +19,7 @@ import { type Language } from "./header";
 import { formatDistanceToNow } from 'date-fns';
 
 export type HistoryEntry = {
+  name: string;
   code: string;
   language: Language;
   timestamp: string;
@@ -79,17 +80,20 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
                   className="p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => onRestore(entry)}
                 >
-                  <div className="flex justify-between items-start">
-                    <p className="text-xs font-semibold uppercase bg-primary/10 text-primary px-2 py-1 rounded-full">
-                        {entry.language}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <pre className="mt-2 text-sm font-code bg-transparent p-0 whitespace-pre-wrap truncate h-12">
-                    {entry.code}
-                  </pre>
+                    <div className="flex justify-between items-start mb-2">
+                        <p className="font-semibold text-sm">{entry.name}</p>
+                        <p className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                            {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
+                        </p>
+                    </div>
+                    <div className="flex justify-between items-end">
+                        <pre className="text-sm font-code bg-transparent p-0 whitespace-pre-wrap truncate h-12 w-full">
+                            {entry.code}
+                        </pre>
+                         <p className="text-xs font-semibold uppercase bg-primary/10 text-primary px-2 py-1 rounded-full flex-shrink-0">
+                            {entry.language}
+                        </p>
+                    </div>
                 </div>
               ))}
             </div>
