@@ -65,6 +65,16 @@ export default function Home() {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const roomIdRef = useRef<string | null>(null);
   const { toast } = useToast();
+  
+  useEffect(() => {
+    // On theme change, update the body class
+    if (theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  }, [theme]);
+
 
   useEffect(() => {
     const roomIdFromUrl = new URLSearchParams(window.location.search).get('roomId');
@@ -216,15 +226,16 @@ export default function Home() {
     setImageUrl(null);
 
     let conversation;
-    let currentOutput;
+    let currentOutput = output;
 
     if (currentStdin) {
       currentOutput = `${output}\n${currentStdin}\n`;
       conversation = currentOutput;
     } else {
-      setOutput("Compiling and running...\n");
+      currentOutput = "Compiling and running...\n";
       conversation = "";
     }
+    setOutput(currentOutput);
 
 
     try {
