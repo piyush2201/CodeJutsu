@@ -46,7 +46,7 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
           <History />
           History
         </CardTitle>
-        {history.length > 0 && (
+        {isClient && history.length > 0 && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="icon">
