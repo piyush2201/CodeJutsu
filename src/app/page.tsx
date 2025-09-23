@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Paperclip, Phone, Video, Mic, MicOff, VideoOff } from "lucide-react";
+import { Paperclip, Phone, Video, Mic, MicOff, VideoOff, PhoneOff } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -255,8 +255,6 @@ export default function Home() {
         onCompile={() => handleCompile()}
         onDownload={handleDownload}
         isCompiling={isCompiling}
-        onVideoCallToggle={handleVideoCallToggle}
-        isCallActive={isCallActive}
       />
       <main className="flex-1 flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal">
@@ -267,12 +265,18 @@ export default function Home() {
                   <div className="flex flex-col h-full gap-4 p-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-semibold px-1">Code Editor</h2>
-                      <DevPilot
-                        code={code}
-                        language={language}
-                        onCodeUpdate={setCode}
-                        onLanguageChange={handleLanguageChange}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Button onClick={handleVideoCallToggle} variant="outline" size="sm">
+                          {isCallActive ? <PhoneOff /> : <Video />}
+                          <span className="sr-only">{isCallActive ? "End Call" : "Start Video Call"}</span>
+                        </Button>
+                        <DevPilot
+                          code={code}
+                          language={language}
+                          onCodeUpdate={setCode}
+                          onLanguageChange={handleLanguageChange}
+                        />
+                      </div>
                     </div>
                     <Separator />
                     <div className="rounded-lg border overflow-hidden shadow-md flex-1">
@@ -361,6 +365,9 @@ export default function Home() {
                                 <Toggle pressed={isMicOn} onPressedChange={handleToggleMic} aria-label="Toggle microphone">
                                     {isMicOn ? <Mic /> : <MicOff />}
                                 </Toggle>
+                                <Button onClick={handleVideoCallToggle} variant="destructive" size="sm">
+                                  <PhoneOff />
+                                </Button>
                             </div>
                         )}
                          <div className="text-xs text-muted-foreground text-center">
