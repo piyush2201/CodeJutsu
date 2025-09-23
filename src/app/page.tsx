@@ -4,7 +4,7 @@ import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { compileAndRunCode } from "@/ai/flows/compile-and-run-code";
 import { Header, type Language, type Theme } from "@/components/header";
 import { CodeEditor } from "@/components/code-editor";
-import { AiAssist } from "@/components/ai-assist";
+import { DevPilot } from "@/components/dev-pilot";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -163,7 +163,7 @@ export default function Home() {
         finalOutput = currentOutput + resultOutput;
       } else {
         // Replace "Compiling..." with the actual output for a new run
-        finalOutput = currentOutput.replace("Compiling and running...\n", "") + resultOutput;
+        finalOutput = resultOutput;
       }
 
       setOutput(finalOutput);
@@ -267,7 +267,7 @@ export default function Home() {
                   <div className="flex flex-col h-full gap-4 p-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-semibold px-1">Code Editor</h2>
-                      <AiAssist 
+                      <DevPilot
                         code={code}
                         language={language}
                         onCodeUpdate={setCode}
