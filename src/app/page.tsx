@@ -19,6 +19,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Toggle } from "@/components/ui/toggle";
+import { database } from "@/lib/firebase";
+import { ref, onValue, set, onDisconnect } from "firebase/database";
 
 const defaultCode: Record<Language, string> = {
   python: 'import time\n\nprint("--- Countdown Timer ---")\nwhile True:\n    try:\n        num_str = input("Enter a positive number to count down from: ")\n        num = int(num_str)\n        if num <= 0:\n            print("Please enter a positive number.")\n            continue\n\n        for i in range(num, 0, -1):\n            print(f"{i}...")\n            time.sleep(1)\n        print("Blast off! 🚀")\n        break\n    except ValueError:\n        print("That\'s not a valid number. Please try again.")',
@@ -40,54 +42,104 @@ export default function Home() {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const roomIdRef = useRef<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const cleanupStream = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-        setHasCameraPermission(null);
+    const roomIdFromUrl = new URLSearchParams(window.location.search).get('roomId');
+    if (roomIdFromUrl) {
+      handleVideoCallToggle(roomIdFromUrl);
     }
-    
-    if (isCallActive) {
-      const getCameraPermission = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          streamRef.current = stream;
-          setHasCameraPermission(true);
-          setIsCameraOn(true);
-          setIsMicOn(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        } catch (error) {
-          console.error("Error accessing media devices:", error);
-          setHasCameraPermission(false);
-          toast({
-            variant: "destructive",
-            title: "Media Access Denied",
-            description:
-              "Please enable camera and microphone permissions in your browser settings.",
-          });
-        }
-      };
+  useEffect(() => {
+    const cleanup = () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+      streamRef.current = null;
+      peerConnectionRef.current = null;
+      setHasCameraPermission(null);
+      if (roomIdRef.current) {
+        const roomRef = ref(database, 'rooms/' + roomIdRef.current);
+        onDisconnect(roomRef).remove();
+        roomIdRef.current = null;
+      }
+       // Clean up URL
+      if (window.history.pushState) {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.pushState({path:newUrl},'',newUrl);
+      }
+    };
 
-      getCameraPermission();
-    } else {
-        cleanupStream();
+    if (!isCallActive) {
+      cleanup();
     }
     
     return () => {
-        cleanupStream();
+        cleanup();
     }
-  }, [isCallActive, toast]);
+  }, [isCallActive]);
+
+  const setupPeerConnection = (localStream: MediaStream, roomId: string) => {
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+    });
+
+    pc.ontrack = (event) => {
+        if (remoteVideoRef.current && event.streams[0]) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+        }
+    };
+
+    const roomRef = ref(database, 'rooms/' + roomId);
+    const signalingRef = ref(database, 'rooms/' + roomId + '/signaling');
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            set(ref(database, `rooms/${roomId}/iceCandidates/${Date.now()}`), event.candidate.toJSON());
+        }
+    };
+    
+    onValue(ref(database, `rooms/${roomId}/iceCandidates`), (snapshot) => {
+        if (snapshot.exists()) {
+            Object.values(snapshot.val()).forEach((candidate) => {
+                if (candidate) {
+                    pc.addIceCandidate(new RTCIceCandidate(candidate as RTCIceCandidateInit)).catch(e => console.error("Error adding received ice candidate", e));
+                }
+            });
+        }
+    });
+
+    onValue(signalingRef, async (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.type === 'offer' && pc.signalingState !== 'stable') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            set(signalingRef, { type: 'answer', sdp: pc.localDescription?.sdp });
+        } else if (data && data.type === 'answer' && pc.signalingState !== 'stable') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data));
+        }
+    });
+
+    peerConnectionRef.current = pc;
+
+    return roomRef;
+  };
   
   const handleToggleCamera = () => {
     if (streamRef.current) {
@@ -134,16 +186,14 @@ export default function Home() {
     setIsWaitingForInput(false);
 
     let conversation;
-    let currentOutput;
+    let currentOutput = output;
 
     if (currentStdin) {
-      // Append user input to the existing output
-      currentOutput = output + `${currentStdin}\n`;
+      currentOutput += `${currentStdin}\n`;
       conversation = currentOutput;
     } else {
-      // This is a new run, clear the output
       currentOutput = "Compiling and running...\n";
-      conversation = ""; // Start a fresh conversation for the AI
+      conversation = "";
     }
     setOutput(currentOutput);
 
@@ -159,14 +209,12 @@ export default function Home() {
       
       let finalOutput;
       if (currentStdin) {
-        // Append new output to the existing conversation
         finalOutput = currentOutput + resultOutput;
       } else {
-        // Replace "Compiling..." with the actual output for a new run
         finalOutput = resultOutput;
       }
+      setOutput(finalOutput.replace("Compiling and running...\n", ""));
 
-      setOutput(finalOutput);
 
       if (
         resultOutput.toLowerCase().includes("enter") ||
@@ -232,15 +280,59 @@ export default function Home() {
     });
   };
 
-  const handleVideoCallToggle = () => {
-    setIsCallActive(!isCallActive);
+  const handleVideoCallToggle = async (joinRoomId: string | null = null) => {
+    if (isCallActive) {
+      setIsCallActive(false);
+      return;
+    }
+
+    setIsCallActive(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setHasCameraPermission(true);
+      setIsCameraOn(true);
+      setIsMicOn(true);
+      
+      const newRoomId = joinRoomId || Date.now().toString();
+      roomIdRef.current = newRoomId;
+
+      const roomRef = setupPeerConnection(stream, newRoomId);
+
+      if (!joinRoomId) { // This user is creating the call
+        await set(roomRef, { creator: true });
+        onDisconnect(roomRef).remove();
+        const offer = await peerConnectionRef.current!.createOffer();
+        await peerConnectionRef.current!.setLocalDescription(offer);
+        set(ref(database, `rooms/${newRoomId}/signaling`), { type: 'offer', sdp: peerConnectionRef.current!.localDescription?.sdp });
+      }
+
+      if (window.history.pushState) {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?roomId=' + newRoomId;
+        window.history.pushState({path:newUrl},'',newUrl);
+      }
+      
+    } catch (error) {
+      console.error("Error accessing media devices:", error);
+      setHasCameraPermission(false);
+      setIsCallActive(false);
+      toast({
+        variant: "destructive",
+        title: "Media Access Denied",
+        description: "Please enable camera and microphone permissions in your browser settings.",
+      });
+    }
   };
   
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     toast({
       title: "Link Copied!",
-      description: "You can now share the link with your friends.",
+      description: "You can now share the link with your friend to join the call.",
     });
   }
 
@@ -266,7 +358,7 @@ export default function Home() {
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-semibold px-1">Code Editor</h2>
                       <div className="flex items-center gap-2">
-                        <Button onClick={handleVideoCallToggle} variant="outline" size="sm">
+                        <Button onClick={() => handleVideoCallToggle()} variant="outline" size="sm">
                           {isCallActive ? <PhoneOff /> : <Video />}
                           <span className="sr-only">{isCallActive ? "End Call" : "Start Video Call"}</span>
                         </Button>
@@ -342,12 +434,15 @@ export default function Home() {
                   <CardContent className="h-full pt-2">
                     <div className="flex flex-col gap-4 h-full">
                         <div className="relative w-full aspect-video rounded-md bg-muted overflow-hidden">
-                           <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                           <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline/>
                            {!isCameraOn && (
                             <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
                                 <VideoOff className="w-12 h-12 text-muted-foreground" />
                             </div>
                            )}
+                        </div>
+                        <div className="relative w-full aspect-video rounded-md bg-muted overflow-hidden">
+                           <video ref={remoteVideoRef} className="w-full h-full object-cover" autoPlay playsInline/>
                         </div>
                         {hasCameraPermission === false && (
                             <Alert variant="destructive">
@@ -365,14 +460,11 @@ export default function Home() {
                                 <Toggle pressed={isMicOn} onPressedChange={handleToggleMic} aria-label="Toggle microphone">
                                     {isMicOn ? <Mic /> : <MicOff />}
                                 </Toggle>
-                                <Button onClick={handleVideoCallToggle} variant="destructive" size="sm">
+                                <Button onClick={() => handleVideoCallToggle()} variant="destructive" size="icon">
                                   <PhoneOff />
                                 </Button>
                             </div>
                         )}
-                         <div className="text-xs text-muted-foreground text-center">
-                            Note: Full video call functionality requires a backend implementation. This is a UI preview.
-                        </div>
                     </div>
                   </CardContent>
                 </Card>
