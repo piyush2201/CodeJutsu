@@ -155,7 +155,7 @@ export function AiAssist({ code, language, onCodeUpdate, onLanguageChange }: AiA
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
                     {languages.map((lang) => (
-                        <Card key={lang.value} className={cn("cursor-pointer hover:bg-muted/50", selectedLanguage === lang.value && "border-primary ring-2 ring-primary")} onClick={() => setSelectedLanguage(lang.value)}>
+                        <Card key={lang.value} className={cn("cursor-pointer hover:bg-muted/50 transition-all", selectedLanguage === lang.value && "border-primary ring-2 ring-primary")} onClick={() => setSelectedLanguage(lang.value)}>
                             <CardContent className="flex items-center justify-center p-6">
                                 <h3 className="text-lg font-semibold">{lang.label}</h3>
                             </CardContent>

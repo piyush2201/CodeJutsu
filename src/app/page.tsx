@@ -133,21 +133,19 @@ export default function Home() {
     setIsCompiling(true);
     setIsWaitingForInput(false);
 
-    let conversation = output;
-    let currentOutput = output;
-    
+    let conversation;
+    let currentOutput;
+
     if (currentStdin) {
-      currentOutput += `${currentStdin}\n`;
+      // Append user input to the existing output
+      currentOutput = output + `${currentStdin}\n`;
       conversation = currentOutput;
     } else {
-      currentOutput = "";
-      conversation = "";
+      // This is a new run, clear the output
+      currentOutput = "Compiling and running...\n";
+      conversation = ""; // Start a fresh conversation for the AI
     }
-
-    if (!currentStdin) {
-      currentOutput += "Compiling and running...\n";
-      setOutput(currentOutput);
-    }
+    setOutput(currentOutput);
 
 
     try {
@@ -159,12 +157,16 @@ export default function Home() {
       });
       const resultOutput = result.output;
       
-      let finalOutput = currentOutput.replace("Compiling and running...\n", "") + resultOutput;
+      let finalOutput;
       if (currentStdin) {
-        finalOutput = output + currentStdin + "\n" + resultOutput;
+        // Append new output to the existing conversation
+        finalOutput = currentOutput + resultOutput;
+      } else {
+        // Replace "Compiling..." with the actual output for a new run
+        finalOutput = currentOutput.replace("Compiling and running...\n", "") + resultOutput;
       }
-      setOutput(finalOutput);
 
+      setOutput(finalOutput);
 
       if (
         resultOutput.toLowerCase().includes("enter") ||
@@ -196,8 +198,8 @@ export default function Home() {
 
   const handleSubmitInput = () => {
     if (stdin.trim()) {
-      setIsWaitingForInput(false);
       handleCompile(stdin);
+      setIsWaitingForInput(false); // Hide input after submission
     }
   };
 
