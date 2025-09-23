@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 function getValueFromLocalStorage<T>(key: string, initialValue: T): T {
   if (typeof window === 'undefined') {
@@ -20,24 +20,29 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
     return getValueFromLocalStorage(key, initialValue);
   });
 
-  useEffect(() => {
-    try {
-      const valueToStore =
-        typeof storedValue === 'function'
-          ? (storedValue as Function)(storedValue)
-          : storedValue;
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.error(`Error setting localStorage key “${key}”:`, error);
+  const handleStorageChange = useCallback((event: StorageEvent) => {
+    if (event.key === key && event.newValue !== null) {
+      try {
+        setStoredValue(JSON.parse(event.newValue));
+      } catch (error) {
+         console.error(`Error parsing localStorage key “${key}” on storage event:`, error);
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, storedValue]);
+  }, [key]);
+
+  useEffect(() => {
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [handleStorageChange]);
 
   const setValue = (value: T | ((val: T) => T)) => {
     try {
       const valueToStore =
         value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
     } catch (error) {
       console.error(`Error setting localStorage key “${key}”:`, error);
     }
