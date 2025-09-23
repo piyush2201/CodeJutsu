@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
-import { compileAndRunCode } from "@/ai/flows/compile-and-run-code";
+import { compileAndRunCode, CompileAndRunCodeOutput } from "@/ai/flows/compile-and-run-code";
 import { Header, type Language, type Theme } from "@/components/header";
 import { CodeEditor } from "@/components/code-editor";
 import { DevPilot } from "@/components/dev-pilot";
@@ -20,10 +20,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Toggle } from "@/components/ui/toggle";
 import { database } from "@/lib/firebase";
-import { ref, onValue, set, onDisconnect } from "firebase/database";
+import { ref, onValue, set, onDisconnect, remove } from "firebase/database";
+import Image from "next/image";
 
 const defaultCode: Record<Language, string> = {
-  python: 'import time\n\nprint("--- Countdown Timer ---")\nwhile True:\n    try:\n        num_str = input("Enter a positive number to count down from: ")\n        num = int(num_str)\n        if num <= 0:\n            print("Please enter a positive number.")\n            continue\n\n        for i in range(num, 0, -1):\n            print(f"{i}...")\n            time.sleep(1)\n        print("Blast off! 🚀")\n        break\n    except ValueError:\n        print("That\'s not a valid number. Please try again.")',
+  python: `import matplotlib.pyplot as plt
+import numpy as np
+
+# Data for the pie chart
+labels = ['Frogs', 'Hogs', 'Dogs', 'Logs']
+sizes = [15, 30, 45, 10]
+explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
+
+# Create a new figure and axes
+fig1, ax1 = plt.subplots()
+
+# Create the pie chart
+ax1.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%',
+        shadow=True, startangle=90)
+ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+# Display the plot
+plt.show()`,
   java: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        System.out.print("Enter your name: ");\n        String name = scanner.nextLine();\n        System.out.println("Hello, " + name + "!");\n        scanner.close();\n    }\n}',
   cpp: '#include <iostream>\n#include <string>\n\nint main() {\n    std::string name;\n    std::cout << "Enter your name: ";\n    std::getline(std::cin, name);\n    std::cout << "Hello, " << name << "!" << std::endl;\n    return 0;\n}',
   c: '#include <stdio.h>\n\nint main() {\n    char name[50];\n    printf("Enter your name: ");\n    fgets(name, 50, stdin);\n    printf("Hello, %s", name);\n    return 0;\n}',
@@ -34,6 +52,7 @@ export default function Home() {
   const [theme, setTheme] = useState<Theme>("vs-dark");
   const [code, setCode] = useState<string>(defaultCode.python);
   const [output, setOutput] = useState<string>("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [stdin, setStdin] = useState<string>("");
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
   const [isWaitingForInput, setIsWaitingForInput] = useState<boolean>(false);
@@ -71,7 +90,7 @@ export default function Home() {
       setHasCameraPermission(null);
       if (roomIdRef.current) {
         const roomRef = ref(database, 'rooms/' + roomIdRef.current);
-        onDisconnect(roomRef).remove();
+        remove(roomRef);
         roomIdRef.current = null;
       }
        // Clean up URL
@@ -107,18 +126,26 @@ export default function Home() {
 
     const roomRef = ref(database, 'rooms/' + roomId);
     const signalingRef = ref(database, 'rooms/' + roomId + '/signaling');
+    const iceCandidatesRef = ref(database, 'rooms/' + roomId + '/iceCandidates');
+
 
     pc.onicecandidate = (event) => {
         if (event.candidate) {
-            set(ref(database, `rooms/${roomId}/iceCandidates/${Date.now()}`), event.candidate.toJSON());
+            const candidateRef = ref(database, `rooms/${roomId}/iceCandidates/${Date.now()}`);
+            set(candidateRef, event.candidate.toJSON());
         }
     };
     
-    onValue(ref(database, `rooms/${roomId}/iceCandidates`), (snapshot) => {
+    onValue(iceCandidatesRef, (snapshot) => {
         if (snapshot.exists()) {
-            Object.values(snapshot.val()).forEach((candidate) => {
-                if (candidate) {
-                    pc.addIceCandidate(new RTCIceCandidate(candidate as RTCIceCandidateInit)).catch(e => console.error("Error adding received ice candidate", e));
+            const candidates = snapshot.val();
+            Object.values(candidates).forEach((candidate) => {
+                if (candidate && pc.signalingState !== 'closed') {
+                   try {
+                     pc.addIceCandidate(new RTCIceCandidate(candidate as RTCIceCandidateInit));
+                   } catch (e) {
+                      console.error("Error adding received ICE candidate", e);
+                   }
                 }
             });
         }
@@ -126,13 +153,15 @@ export default function Home() {
 
     onValue(signalingRef, async (snapshot) => {
         const data = snapshot.val();
-        if (data && data.type === 'offer' && pc.signalingState !== 'stable') {
-            await pc.setRemoteDescription(new RTCSessionDescription(data));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            set(signalingRef, { type: 'answer', sdp: pc.localDescription?.sdp });
-        } else if (data && data.type === 'answer' && pc.signalingState !== 'stable') {
-            await pc.setRemoteDescription(new RTCSessionDescription(data));
+        if (data && pc.signalingState !== 'closed') {
+            if (data.type === 'offer' && pc.signalingState !== 'stable') {
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                set(signalingRef, { type: 'answer', sdp: pc.localDescription?.sdp });
+            } else if (data && data.type === 'answer' && pc.signalingState !== 'stable') {
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+            }
         }
     });
 
@@ -165,6 +194,7 @@ export default function Home() {
     setLanguage(lang);
     setCode(defaultCode[lang]);
     setOutput("");
+    setImageUrl(null);
     setStdin("");
     setIsWaitingForInput(false);
   };
@@ -184,12 +214,13 @@ export default function Home() {
     }
     setIsCompiling(true);
     setIsWaitingForInput(false);
+    setImageUrl(null);
 
     let conversation;
-    let currentOutput = output;
+    let currentOutput;
 
     if (currentStdin) {
-      currentOutput += `${currentStdin}\n`;
+      currentOutput = `${output}\n${currentStdin}\n`;
       conversation = currentOutput;
     } else {
       currentOutput = "Compiling and running...\n";
@@ -199,12 +230,13 @@ export default function Home() {
 
 
     try {
-      const result = await compileAndRunCode({
+      const result: CompileAndRunCodeOutput = await compileAndRunCode({
         code,
         language,
         stdin: currentStdin,
         conversation: conversation,
       });
+
       const resultOutput = result.output;
       
       let finalOutput;
@@ -216,6 +248,10 @@ export default function Home() {
       setOutput(finalOutput.replace("Compiling and running...\n", ""));
 
 
+      if (result.imageUrl) {
+        setImageUrl(result.imageUrl);
+      }
+
       if (
         resultOutput.toLowerCase().includes("enter") ||
         resultOutput.toLowerCase().includes("input")
@@ -225,6 +261,7 @@ export default function Home() {
         setIsWaitingForInput(false);
       }
     } catch (error) {
+      console.error(error);
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
       setOutput(
@@ -247,7 +284,7 @@ export default function Home() {
   const handleSubmitInput = () => {
     if (stdin.trim()) {
       handleCompile(stdin);
-      setIsWaitingForInput(false); // Hide input after submission
+      setIsWaitingForInput(false);
     }
   };
 
@@ -285,7 +322,7 @@ export default function Home() {
       setIsCallActive(false);
       return;
     }
-
+    
     setIsCallActive(true);
 
     try {
@@ -306,9 +343,11 @@ export default function Home() {
       if (!joinRoomId) { // This user is creating the call
         await set(roomRef, { creator: true });
         onDisconnect(roomRef).remove();
-        const offer = await peerConnectionRef.current!.createOffer();
-        await peerConnectionRef.current!.setLocalDescription(offer);
-        set(ref(database, `rooms/${newRoomId}/signaling`), { type: 'offer', sdp: peerConnectionRef.current!.localDescription?.sdp });
+        const pc = peerConnectionRef.current!;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        const signalingOfferRef = ref(database, `rooms/${newRoomId}/signaling`);
+        await set(signalingOfferRef, { type: 'offer', sdp: pc.localDescription?.sdp });
       }
 
       if (window.history.pushState) {
@@ -358,10 +397,10 @@ export default function Home() {
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-semibold px-1">Code Editor</h2>
                       <div className="flex items-center gap-2">
-                        <Button onClick={() => handleVideoCallToggle()} variant="outline" size="sm">
-                          {isCallActive ? <PhoneOff /> : <Video />}
-                          <span className="sr-only">{isCallActive ? "End Call" : "Start Video Call"}</span>
-                        </Button>
+                         <Button onClick={() => handleVideoCallToggle()} variant="outline" size="sm" className="gap-2">
+                           <Video />
+                           Start Video Call
+                         </Button>
                         <DevPilot
                           code={code}
                           language={language}
@@ -383,7 +422,7 @@ export default function Home() {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={40}>
-                  <div className="flex flex-col h-full gap-2 p-4">
+                   <div className="flex flex-col h-full gap-2 p-4">
                       <div className="flex items-center justify-between">
                         <h2 className="text-lg font-semibold px-1">Output</h2>
                       </div>
@@ -393,6 +432,11 @@ export default function Home() {
                           <pre className="text-sm font-code whitespace-pre-wrap">
                             {output || "Output will be displayed here."}
                           </pre>
+                          {imageUrl && (
+                            <div className="mt-4">
+                                <Image src={imageUrl} alt="Generated Plot" width={400} height={300} className="rounded-md" />
+                            </div>
+                          )}
                         </ScrollArea>
                         {isWaitingForInput && (
                           <div className="relative">
@@ -454,13 +498,13 @@ export default function Home() {
                         )}
                         {hasCameraPermission && (
                              <div className="flex justify-center gap-2">
-                                <Toggle pressed={isCameraOn} onPressedChange={handleToggleCamera} aria-label="Toggle camera">
+                                <Toggle pressed={isCameraOn} onPressedChange={handleToggleCamera} aria-label="Toggle camera" variant="outline">
                                     {isCameraOn ? <Video /> : <VideoOff />}
                                 </Toggle>
-                                <Toggle pressed={isMicOn} onPressedChange={handleToggleMic} aria-label="Toggle microphone">
+                                <Toggle pressed={isMicOn} onPressedChange={handleToggleMic} aria-label="Toggle microphone" variant="outline">
                                     {isMicOn ? <Mic /> : <MicOff />}
                                 </Toggle>
-                                <Button onClick={() => handleVideoCallToggle()} variant="destructive" size="icon">
+                                <Button onClick={() => setIsCallActive(false)} variant="destructive" size="icon">
                                   <PhoneOff />
                                 </Button>
                             </div>

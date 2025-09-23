@@ -82,16 +82,16 @@ export function Header({
         
         <Separator orientation="vertical" className="h-8" />
 
-        <Button onClick={onDownload} variant="outline">
-          <Download className="mr-2" />
+        <Button onClick={onDownload} variant="outline" size="sm" className="gap-2">
+          <Download />
           Download
         </Button>
 
-        <Button onClick={onCompile} disabled={isCompiling} className="w-[180px] bg-accent text-accent-foreground hover:bg-accent/90">
+        <Button onClick={onCompile} disabled={isCompiling} size="sm" className="w-[160px] bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 gap-2">
           {isCompiling ? (
-            <Loader2 className="mr-2 animate-spin" />
+            <Loader2 className="animate-spin" />
           ) : (
-            <Play className="mr-2" />
+            <Play />
           )}
           {isCompiling ? "Compiling..." : "Compile & Run"}
         </Button>
