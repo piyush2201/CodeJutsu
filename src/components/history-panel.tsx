@@ -34,7 +34,7 @@ interface HistoryPanelProps {
 export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps) {
   return (
     <Card className="h-full flex flex-col m-4 mr-0">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="flex items-center gap-2 text-lg">
           <History />
           History
@@ -65,9 +65,9 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
         )}
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full p-6 pt-0">
+        <ScrollArea className="h-full p-6 pt-4">
           {history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground pt-12">
                 <History className="w-16 h-16 mb-4"/>
                 <p className="text-sm">Your code execution history will appear here.</p>
                 <p className="text-xs mt-1">Run some code to get started!</p>
@@ -103,3 +103,5 @@ export function HistoryPanel({ history, onRestore, onClear }: HistoryPanelProps)
     </Card>
   );
 }
+
+    

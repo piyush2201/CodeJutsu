@@ -155,6 +155,11 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
       handleGenerate();
     }
   };
+  
+  const handleRetry = () => {
+    setGeneratedResult(null);
+    // Let's keep the request and selected language
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -165,7 +170,7 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[80vw] lg:max-w-[60vw] h-[80vh] flex flex-col">
-        {!selectedLanguage && !generatedResult && (
+        {!selectedLanguage && !generatedResult && !isGenerating && (
             <>
                 <DialogHeader>
                     <DialogTitle>Select a Language</DialogTitle>
@@ -184,7 +189,7 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
                 </div>
             </>
         )}
-        {selectedLanguage && !generatedResult && (
+        {selectedLanguage && !generatedResult && !isGenerating && (
           <>
             <DialogHeader>
               <DialogTitle>DevPilot for {selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1)}</DialogTitle>
@@ -265,6 +270,7 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
                 )}
             </div>
             <DialogFooter>
+               <Button variant="ghost" onClick={handleRetry}>Back</Button>
                <Button variant="outline" onClick={handleDecline}>
                 <X className="mr-2" />
                 {generatedResult.responseType === 'code' ? "Decline" : "Close"}
@@ -278,7 +284,7 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
             </DialogFooter>
           </>
         )}
-         {isGenerating && generatedResult === null && (
+         {isGenerating && (
             <div className="flex flex-col items-center justify-center h-full gap-4">
                 <Loader2 className="w-16 h-16 animate-spin text-primary" />
                 <p className="text-muted-foreground">Generating suggestions...</p>
@@ -288,3 +294,5 @@ export function DevPilot({ code, language, onCodeUpdate, onLanguageChange }: Dev
     </Dialog>
   );
 }
+
+    

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, KeyboardEvent, useRef, useEffect } from "react";
+import { useState, KeyboardEvent, useRef, useEffect, useCallback } from "react";
 import { compileAndRunCode } from "@/ai/flows/compile-and-run-code";
 import { nameCode } from "@/ai/flows/name-code";
 import { Header, type Language, type Theme } from "@/components/header";
@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Paperclip, Phone, Video, Mic, MicOff, VideoOff, PhoneOff } from "lucide-react";
+import { Paperclip, Mic, MicOff, VideoOff, PhoneOff, Video } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Toggle } from "@/components/ui/toggle";
 import { database } from "@/lib/firebase";
-import { ref, onValue, set, onDisconnect, remove } from "firebase/database";
+import { ref, onValue, set, onDisconnect, remove, Unsubscribe } from "firebase/database";
 import Image from "next/image";
 import { HistoryPanel, type HistoryEntry } from "@/components/history-panel";
 import { useLocalStorage } from "@/hooks/use-local-storage";
@@ -63,7 +63,6 @@ export default function Home() {
   const { toast } = useToast();
   
   useEffect(() => {
-    // On theme change, update the body class
     if (theme === 'light') {
       document.documentElement.classList.remove('dark');
     } else {
@@ -71,16 +70,147 @@ export default function Home() {
     }
   }, [theme]);
 
+  const setupPeerConnection = useCallback((localStream: MediaStream, roomId: string) => {
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
 
-  useEffect(() => {
-    const roomIdFromUrl = new URLSearchParams(window.location.search).get('roomId');
-    if (roomIdFromUrl) {
-      handleVideoCallToggle(roomIdFromUrl);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+    });
+
+    pc.ontrack = (event) => {
+        if (remoteVideoRef.current && event.streams[0]) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+        }
+    };
+
+    const roomRef = ref(database, 'rooms/' + roomId);
+    const signalingRef = ref(database, 'rooms/' + roomId + '/signaling');
+    const iceCandidatesRef = ref(database, 'rooms/' + roomId + '/iceCandidates');
+
+    const processedCandidates = new Set();
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            const candidateRef = ref(database, `rooms/${roomId}/iceCandidates/${Date.now()}`);
+            set(candidateRef, event.candidate.toJSON());
+        }
+    };
+    
+    const iceCandidatesUnsubscribe = onValue(iceCandidatesRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const candidates = snapshot.val();
+            Object.keys(candidates).forEach((key) => {
+                if (processedCandidates.has(key)) return;
+                const candidate = candidates[key];
+                if (candidate && pc.signalingState !== 'closed') {
+                   try {
+                     pc.addIceCandidate(new RTCIceCandidate(candidate as RTCIceCandidateInit));
+                     processedCandidates.add(key);
+                   } catch (e) {
+                      console.error("Error adding received ICE candidate", e);
+                   }
+                }
+            });
+        }
+    });
+
+    const signalingUnsubscribe = onValue(signalingRef, async (snapshot) => {
+        const data = snapshot.val();
+        if (data && pc.signalingState !== 'closed') {
+            if (data.type === 'offer' && pc.signalingState === 'have-local-offer') {
+                // This condition might be too strict, maybe check against stable instead
+            } else if (data.type === 'offer' && pc.signalingState !== 'stable') {
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                set(signalingRef, { type: 'answer', sdp: pc.localDescription?.sdp });
+            } else if (data.type === 'answer' && pc.signalingState === 'have-remote-offer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(data));
+            }
+        }
+    });
+
+    peerConnectionRef.current = pc;
+
+    return {roomRef, unsubscribe: [iceCandidatesUnsubscribe, signalingUnsubscribe]};
   }, []);
 
+  const handleVideoCallToggle = useCallback(async (joinRoomId: string | null = null) => {
+    if (isCallActive) {
+      setIsCallActive(false);
+      return;
+    }
+    
+    setIsCallActive(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setHasCameraPermission(true);
+      setIsCameraOn(true);
+      setIsMicOn(true);
+      
+      const newRoomId = joinRoomId || Date.now().toString();
+      roomIdRef.current = newRoomId;
+
+      const { roomRef, unsubscribe } = setupPeerConnection(stream, newRoomId);
+
+      if (!joinRoomId) { // This user is creating the call
+        await set(roomRef, { creator: true });
+        onDisconnect(roomRef).remove();
+        const pc = peerConnectionRef.current!;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        const signalingOfferRef = ref(database, `rooms/${newRoomId}/signaling`);
+        await set(signalingOfferRef, { type: 'offer', sdp: pc.localDescription?.sdp });
+      }
+
+      if (window.history.pushState) {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?roomId=' + newRoomId;
+        window.history.pushState({path:newUrl},'',newUrl);
+      }
+
+      return unsubscribe;
+      
+    } catch (error) {
+      console.error("Error accessing media devices:", error);
+      setHasCameraPermission(false);
+      setIsCallActive(false);
+      toast({
+        variant: "destructive",
+        title: "Media Access Denied",
+        description: "Please enable camera and microphone permissions in your browser settings.",
+      });
+    }
+    return null;
+  }, [isCallActive, setupPeerConnection, toast]);
+
   useEffect(() => {
+    let unsubscribers: Unsubscribe[] | null = null;
+    const joinCall = async () => {
+      const roomIdFromUrl = new URLSearchParams(window.location.search).get('roomId');
+      if (roomIdFromUrl) {
+        const result = await handleVideoCallToggle(roomIdFromUrl);
+        if(result) {
+          unsubscribers = result;
+        }
+      }
+    }
+    joinCall();
+
+    return () => {
+        unsubscribers?.forEach(unsub => unsub());
+    }
+  }, [handleVideoCallToggle]);
+
+  useEffect(() => {
+    let unsubscribers: Unsubscribe[] | null = null;
+    
     const cleanup = () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -103,6 +233,7 @@ export default function Home() {
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.pushState({path:newUrl},'',newUrl);
       }
+      unsubscribers?.forEach(unsub => unsub());
     };
 
     if (!isCallActive) {
@@ -114,67 +245,6 @@ export default function Home() {
     }
   }, [isCallActive]);
 
-  const setupPeerConnection = (localStream: MediaStream, roomId: string) => {
-    const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
-
-    localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
-    });
-
-    pc.ontrack = (event) => {
-        if (remoteVideoRef.current && event.streams[0]) {
-            remoteVideoRef.current.srcObject = event.streams[0];
-        }
-    };
-
-    const roomRef = ref(database, 'rooms/' + roomId);
-    const signalingRef = ref(database, 'rooms/' + roomId + '/signaling');
-    const iceCandidatesRef = ref(database, 'rooms/' + roomId + '/iceCandidates');
-
-
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            const candidateRef = ref(database, `rooms/${roomId}/iceCandidates/${Date.now()}`);
-            set(candidateRef, event.candidate.toJSON());
-        }
-    };
-    
-    onValue(iceCandidatesRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const candidates = snapshot.val();
-            Object.values(candidates).forEach((candidate) => {
-                if (candidate && pc.signalingState !== 'closed') {
-                   try {
-                     pc.addIceCandidate(new RTCIceCandidate(candidate as RTCIceCandidateInit));
-                   } catch (e) {
-                      console.error("Error adding received ICE candidate", e);
-                   }
-                }
-            });
-        }
-    });
-
-    onValue(signalingRef, async (snapshot) => {
-        const data = snapshot.val();
-        if (data && pc.signalingState !== 'closed') {
-            if (data.type === 'offer' && pc.signalingState !== 'stable') {
-                await pc.setRemoteDescription(new RTCSessionDescription(data));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                set(signalingRef, { type: 'answer', sdp: pc.localDescription?.sdp });
-            } else if (data && data.type === 'answer' && pc.signalingState !== 'stable') {
-                await pc.setRemoteDescription(new RTCSessionDescription(data));
-            }
-        }
-    });
-
-    peerConnectionRef.current = pc;
-
-    return roomRef;
-  };
-  
   const handleToggleCamera = () => {
     if (streamRef.current) {
       const videoTrack = streamRef.current.getVideoTracks()[0];
@@ -325,56 +395,6 @@ export default function Home() {
       description: `Your code has been downloaded as codejutsu-code${fileExtensions[language]}.`,
     });
   };
-
-  const handleVideoCallToggle = async (joinRoomId: string | null = null) => {
-    if (isCallActive) {
-      setIsCallActive(false);
-      return;
-    }
-    
-    setIsCallActive(true);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setHasCameraPermission(true);
-      setIsCameraOn(true);
-      setIsMicOn(true);
-      
-      const newRoomId = joinRoomId || Date.now().toString();
-      roomIdRef.current = newRoomId;
-
-      const roomRef = setupPeerConnection(stream, newRoomId);
-
-      if (!joinRoomId) { // This user is creating the call
-        await set(roomRef, { creator: true });
-        onDisconnect(roomRef).remove();
-        const pc = peerConnectionRef.current!;
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        const signalingOfferRef = ref(database, `rooms/${newRoomId}/signaling`);
-        await set(signalingOfferRef, { type: 'offer', sdp: pc.localDescription?.sdp });
-      }
-
-      if (window.history.pushState) {
-        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?roomId=' + newRoomId;
-        window.history.pushState({path:newUrl},'',newUrl);
-      }
-      
-    } catch (error) {
-      console.error("Error accessing media devices:", error);
-      setHasCameraPermission(false);
-      setIsCallActive(false);
-      toast({
-        variant: "destructive",
-        title: "Media Access Denied",
-        description: "Please enable camera and microphone permissions in your browser settings.",
-      });
-    }
-  };
   
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -403,7 +423,7 @@ export default function Home() {
         onCompile={() => handleCompile()}
         onDownload={handleDownload}
         isCompiling={isCompiling}
-        onVideoCallToggle={handleVideoCallToggle}
+        onVideoCallToggle={() => handleVideoCallToggle()}
         code={code}
         onCodeUpdate={setCode}
       />
@@ -492,8 +512,8 @@ export default function Home() {
                     <CardTitle className="text-lg">Video Call</CardTitle>
                     <Button variant="outline" size="sm" onClick={handleCopyLink}>Copy Link</Button>
                   </CardHeader>
-                  <CardContent className="h-full pt-2">
-                    <div className="flex flex-col gap-4 h-full">
+                  <CardContent className="h-full pt-2 flex flex-col">
+                    <div className="flex flex-col gap-4 flex-1">
                         <div className="relative w-full aspect-video rounded-md bg-muted overflow-hidden">
                            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline/>
                            {!isCameraOn && (
@@ -513,6 +533,7 @@ export default function Home() {
                                 </AlertDescription>
                             </Alert>
                         )}
+                        <div className="flex-grow" />
                         {hasCameraPermission && (
                              <div className="flex justify-center gap-2">
                                 <Toggle pressed={isCameraOn} onPressedChange={handleToggleCamera} aria-label="Toggle camera" variant="outline">
@@ -537,3 +558,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
