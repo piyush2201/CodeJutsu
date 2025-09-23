@@ -46,6 +46,7 @@ const assistantPrompt = ai.definePrompt({
     3.  If the user is requesting a **code modification**:
         -   Set the 'responseType' to 'code'.
         -   Return the complete, updated code in the 'code' field.
+        -   **IMPORTANT**: Ensure the returned code is properly formatted with correct indentation and line breaks. It should be ready to be directly placed into an editor.
         -   Do not add any explanations, comments, or introductory text in the 'code' field. Only return the raw, modified code.
         -   Do not provide any text in the 'answer' field.
 
