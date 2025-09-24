@@ -61,6 +61,7 @@ export function CodeEditor({
           fontFamily: "'Source Code Pro', monospace",
           scrollBeyondLastLine: false,
           automaticLayout: true,
+          glyphMargin: true,
           ...options,
         }}
       />
@@ -68,9 +69,14 @@ export function CodeEditor({
         <div 
           className={cn(
             "absolute top-0 left-0 pointer-events-none text-muted-foreground",
-            "px-[18px] py-[2px] text-[14px] font-code" // Manual alignment to match Monaco
+            "px-4 py-0.5 text-[14px] font-code"
           )}
-          style={{ fontFamily: "'Source Code Pro', monospace" }}
+          style={{ 
+            fontFamily: "'Source Code Pro', monospace",
+            // This padding aligns the placeholder with the editor's text area
+            paddingLeft: '60px', 
+            paddingTop: '1px'
+          }}
           aria-hidden="true"
         >
           {placeholder}
