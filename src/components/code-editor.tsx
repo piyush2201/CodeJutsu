@@ -2,8 +2,9 @@
 
 import Editor, { OnChange, loader } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Skeleton } from "./ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // Monaco editor can have issues with Next.js App Router due to how it loads worker files.
 // Using a CDN is a reliable workaround. This must be called before editor is rendered.
@@ -31,13 +32,18 @@ export function CodeEditor({
   placeholder,
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor) {
     editorRef.current = editor;
+    editor.onDidFocusEditorWidget(() => setIsFocused(true));
+    editor.onDidBlurEditorWidget(() => setIsFocused(false));
   }
+  
+  const showPlaceholder = !isFocused && (!value || value.length === 0);
 
   return (
-    <div className="w-full h-full font-code">
+    <div className="w-full h-full font-code relative">
       <Editor
         height="100%"
         language={language}
@@ -57,8 +63,19 @@ export function CodeEditor({
           automaticLayout: true,
           ...options,
         }}
-        path={placeholder} // Using path prop to show a placeholder
       />
+       {showPlaceholder && placeholder && (
+        <div 
+          className={cn(
+            "absolute top-0 left-0 pointer-events-none text-muted-foreground",
+            "px-[18px] py-[2px] text-[14px] font-code" // Manual alignment to match Monaco
+          )}
+          style={{ fontFamily: "'Source Code Pro', monospace" }}
+          aria-hidden="true"
+        >
+          {placeholder}
+        </div>
+      )}
     </div>
   );
 }
