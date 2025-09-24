@@ -61,7 +61,7 @@ export function CodeEditor({
           fontFamily: "'Source Code Pro', monospace",
           scrollBeyondLastLine: false,
           automaticLayout: true,
-          glyphMargin: true,
+          glyphMargin: !showPlaceholder,
           ...options,
         }}
       />
@@ -74,7 +74,7 @@ export function CodeEditor({
           style={{ 
             fontFamily: "'Source Code Pro', monospace",
             // This padding aligns the placeholder with the editor's text area
-            paddingLeft: '60px', 
+            paddingLeft: '52px', 
             paddingTop: '1px'
           }}
           aria-hidden="true"
