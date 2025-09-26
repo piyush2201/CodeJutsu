@@ -2,7 +2,7 @@
 
 import Editor, { OnChange, loader } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,11 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor) {
     editorRef.current = editor;
@@ -40,7 +45,7 @@ export function CodeEditor({
     editor.onDidBlurEditorWidget(() => setIsFocused(false));
   }
   
-  const showPlaceholder = !isFocused && (!value || value.length === 0);
+  const showPlaceholder = isClient && !isFocused && (!value || value.length === 0);
 
   return (
     <div className="w-full h-full font-code relative">
