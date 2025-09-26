@@ -410,30 +410,17 @@ export default function Home() {
     setIsWaitingForInput(false);
     setImageUrl(null);
 
-    let conversation;
-    let currentOutput = output;
     const isNewRun = !currentStdin;
-
-    if (currentStdin) {
-      currentOutput = `${output}\n${currentStdin}\n`;
-      conversation = currentOutput;
+    let conversation = isNewRun ? "" : `${output}\n> ${currentStdin}\n`;
+    
+    if (isNewRun) {
+      setOutput("Compiling and running...\n");
     } else {
-      currentOutput = "Compiling and running...\n";
-      conversation = "";
+      setOutput(conversation);
     }
-    setOutput(currentOutput);
-
-
+    
     try {
-      const result = await compileAndRunCode({
-        code,
-        language,
-        stdin: currentStdin,
-        conversation: conversation,
-      });
-      
       if (isNewRun) {
-        // Run naming in the background after we get the result
         nameCode({ code, language }).then(({ name }) => {
           const newHistoryEntry: HistoryEntry = {
             name: name || "Untitled Snippet",
@@ -445,14 +432,16 @@ export default function Home() {
         });
       }
 
+      const result = await compileAndRunCode({
+        code,
+        language,
+        stdin: currentStdin,
+        conversation: conversation,
+      });
+
       const resultOutput = result.output;
       
-      let finalOutput;
-      if (currentStdin) {
-        finalOutput = currentOutput + resultOutput;
-      } else {
-        finalOutput = resultOutput;
-      }
+      const finalOutput = (isNewRun ? "" : conversation) + resultOutput;
       setOutput(finalOutput.replace("Compiling and running...\n", ""));
 
       if (
