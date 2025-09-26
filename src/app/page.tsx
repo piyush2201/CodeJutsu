@@ -160,9 +160,9 @@ const placeholderText: Record<Language, string> = {
 };
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("java");
+  const [language, setLanguage] = useLocalStorage<Language>("codejutsu-language", "java");
   const [theme, setTheme] = useState<Theme>("vs-dark");
-  const [code, setCode] = useState<string>(defaultCode.java);
+  const [code, setCode] = useLocalStorage<string>("codejutsu-code", defaultCode.java);
   const [output, setOutput] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [stdin, setStdin] = useState<string>("");
@@ -415,14 +415,17 @@ export default function Home() {
     const isNewRun = !currentStdin;
 
     let newConversation: string;
+    let initialOutput: string;
+
     if (isNewRun) {
-      setOutput("Compiling and running...\n");
+      initialOutput = "Compiling and running...\n";
       newConversation = "";
     } else {
-      newConversation = `${conversation}${currentStdin}\n`;
-      setOutput(newConversation);
+      initialOutput = output + `${currentStdin}\n`;
+      newConversation = output + `${currentStdin}\n`;
     }
-    setConversation(newConversation);
+    
+    setOutput(initialOutput);
     
     try {
       const result = await compileAndRunCode({
@@ -434,8 +437,8 @@ export default function Home() {
 
       const resultOutput = result.output;
       
-      const finalOutput = newConversation + resultOutput;
-      setOutput(finalOutput.replace("Compiling and running...\n", ""));
+      const finalOutput = newConversation.replace("Compiling and running...\n", "") + resultOutput;
+      setOutput(finalOutput);
       setConversation(finalOutput);
 
       if (
@@ -445,7 +448,7 @@ export default function Home() {
         setIsWaitingForInput(true);
       } else {
         setIsWaitingForInput(false);
-        setConversation(""); // Reset conversation after completion
+        // Do not reset conversation here to allow users to see the full log
       }
 
       if (isNewRun) {
@@ -457,7 +460,10 @@ export default function Home() {
             language,
             timestamp: new Date().toISOString(),
           };
-          setHistory([newHistoryEntry, ...history]);
+          // Prevent duplicate history entries
+          if (!history.some(entry => entry.code === code && entry.name === name)) {
+             setHistory([newHistoryEntry, ...history]);
+          }
         });
       }
 
@@ -683,5 +689,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
