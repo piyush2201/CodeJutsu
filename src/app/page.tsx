@@ -414,17 +414,14 @@ export default function Home() {
 
     const isNewRun = !currentStdin;
 
-    // This is the new logic to handle conversation history
     let newConversation: string;
-    let newOutput: string;
     if (isNewRun) {
-      newOutput = "Compiling and running...\n";
+      setOutput("Compiling and running...\n");
       newConversation = "";
     } else {
-      newConversation = `${conversation}${output}\n> ${currentStdin}\n`;
-      newOutput = newConversation;
+      newConversation = `${conversation}${currentStdin}\n`;
+      setOutput(newConversation);
     }
-    setOutput(newOutput);
     setConversation(newConversation);
     
     try {
@@ -437,7 +434,7 @@ export default function Home() {
 
       const resultOutput = result.output;
       
-      const finalOutput = (isNewRun ? "" : newConversation) + resultOutput;
+      const finalOutput = newConversation + resultOutput;
       setOutput(finalOutput.replace("Compiling and running...\n", ""));
       setConversation(finalOutput);
 
@@ -686,3 +683,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
