@@ -27,7 +27,24 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 
 
 const defaultCode: Record<Language, string> = {
-  python: ``,
+  python: `while True:
+    print("Please enter a number (or type 'exit' to quit):")
+    try:
+        line = input()
+        if line.lower() == 'exit':
+            print("Exiting program.")
+            break
+        
+        # Check if the input string contains only digits.
+        if line.isdigit():
+            print(f"Valid number entered: {line}")
+        else:
+            print("Error: That's not a valid number. Please enter only digits.")
+            
+    except EOFError:
+        # This handles the end of input, which can happen in some environments
+        break
+`,
   java: `import java.util.Scanner;
 
 public class ConsoleNumberValidator {
@@ -51,22 +68,95 @@ public class ConsoleNumberValidator {
                 System.out.println("Error: That's not a valid number. Please enter only digits.");
             }
             
-            System.out.println("\nPlease enter another number (or type 'exit' to quit):");
+            System.out.println("\\nPlease enter another number (or type 'exit' to quit):");
         }
 
         scanner.close();
     }
 }
 `,
-  cpp: ``,
-  c: ``,
+  cpp: `#include <iostream>
+#include <string>
+#include <algorithm>
+#include <cctype>
+
+bool isNumber(const std::string& s) {
+    return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
+}
+
+int main() {
+    std::string input;
+    std::cout << "Please enter a number (or type 'exit' to quit):" << std::endl;
+
+    while (std::getline(std::cin, input)) {
+        if (input == "exit") {
+            std::cout << "Exiting program." << std::endl;
+            break;
+        }
+
+        if (isNumber(input)) {
+            std::cout << "Valid number entered: " << input << std::endl;
+        } else {
+            std::cout << "Error: That's not a valid number. Please enter only digits." << std::endl;
+        }
+
+        std::cout << "\\nPlease enter another number (or type 'exit' to quit):" << std::endl;
+    }
+
+    return 0;
+}
+`,
+  c: `#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+// Function to check if a string is a valid number
+int isNumber(const char* str) {
+    if (str == NULL || *str == '\\0') {
+        return 0; // Not a number if empty or null
+    }
+    while (*str) {
+        if (!isdigit(*str)) {
+            return 0; // Not a number if any character is not a digit
+        }
+        str++;
+    }
+    return 1;
+}
+
+int main() {
+    char input[100];
+
+    printf("Please enter a number (or type 'exit' to quit):\\n");
+
+    while (fgets(input, sizeof(input), stdin) != NULL) {
+        // Remove trailing newline character from fgets
+        input[strcspn(input, "\\n")] = 0;
+
+        if (strcmp(input, "exit") == 0) {
+            printf("Exiting program.\\n");
+            break;
+        }
+
+        if (isNumber(input)) {
+            printf("Valid number entered: %s\\n", input);
+        } else {
+            printf("Error: That's not a valid number. Please enter only digits.\\n");
+        }
+        
+        printf("\\nPlease enter another number (or type 'exit' to quit):\\n");
+    }
+
+    return 0;
+}
+`,
 };
 
 const placeholderText: Record<Language, string> = {
-  python: "Write your Python code here......",
-  java: "Write your Java code here......",
-  cpp: "Write your C++ code here......",
-  c: "Write your C code here......",
+  python: "Write your Python code here...",
+  java: "Write your Java code here...",
+  cpp: "Write your C++ code here...",
+  c: "Write your C code here...",
 };
 
 export default function Home() {
@@ -587,7 +677,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
