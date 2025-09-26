@@ -28,7 +28,36 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 
 const defaultCode: Record<Language, string> = {
   python: ``,
-  java: ``,
+  java: `import java.util.Scanner;
+
+public class ConsoleNumberValidator {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Please enter a number (or type 'exit' to quit):");
+
+        while (scanner.hasNextLine()) {
+            String input = scanner.nextLine();
+
+            if ("exit".equalsIgnoreCase(input)) {
+                System.out.println("Exiting program.");
+                break;
+            }
+
+            // Check if the input string contains only digits.
+            if (input.matches("[0-9]+")) {
+                System.out.println("Valid number entered: " + input);
+            } else {
+                System.out.println("Error: That's not a valid number. Please enter only digits.");
+            }
+            
+            System.out.println("\nPlease enter another number (or type 'exit' to quit):");
+        }
+
+        scanner.close();
+    }
+}
+`,
   cpp: ``,
   c: ``,
 };
@@ -41,9 +70,9 @@ const placeholderText: Record<Language, string> = {
 };
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("python");
+  const [language, setLanguage] = useState<Language>("java");
   const [theme, setTheme] = useState<Theme>("vs-dark");
-  const [code, setCode] = useState<string>(defaultCode.python);
+  const [code, setCode] = useState<string>(defaultCode.java);
   const [output, setOutput] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [stdin, setStdin] = useState<string>("");
@@ -558,5 +587,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
