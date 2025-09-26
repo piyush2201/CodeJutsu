@@ -162,7 +162,7 @@ const placeholderText: Record<Language, string> = {
 export default function Home() {
   const [language, setLanguage] = useLocalStorage<Language>("codejutsu-language", "java");
   const [theme, setTheme] = useState<Theme>("vs-dark");
-  const [code, setCode] = useLocalStorage<string>("codejutsu-code", defaultCode.java);
+  const [code, setCode] = useLocalStorage<string>(`codejutsu-code-${language}`, defaultCode[language]);
   const [output, setOutput] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [stdin, setStdin] = useState<string>("");
@@ -387,7 +387,7 @@ export default function Home() {
 
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
-    setCode(defaultCode[lang]);
+    // setCode is handled by the useLocalStorage hook re-running with the new key
     setOutput("");
     setConversation("");
     setImageUrl(null);
@@ -415,17 +415,14 @@ export default function Home() {
     const isNewRun = !currentStdin;
 
     let newConversation: string;
-    let initialOutput: string;
-
-    if (isNewRun) {
-      initialOutput = "Compiling and running...\n";
-      newConversation = "";
-    } else {
-      initialOutput = output + `${currentStdin}\n`;
-      newConversation = output + `${currentStdin}\n`;
-    }
     
-    setOutput(initialOutput);
+    if (isNewRun) {
+        setOutput("Compiling and running...\n");
+        newConversation = "";
+    } else {
+        setOutput((prev) => prev + `${currentStdin}\n`);
+        newConversation = conversation + `${currentStdin}\n`;
+    }
     
     try {
       const result = await compileAndRunCode({
@@ -437,7 +434,7 @@ export default function Home() {
 
       const resultOutput = result.output;
       
-      const finalOutput = newConversation.replace("Compiling and running...\n", "") + resultOutput;
+      const finalOutput = (isNewRun ? "" : newConversation) + resultOutput;
       setOutput(finalOutput);
       setConversation(finalOutput);
 
@@ -448,11 +445,10 @@ export default function Home() {
         setIsWaitingForInput(true);
       } else {
         setIsWaitingForInput(false);
-        // Do not reset conversation here to allow users to see the full log
       }
 
+      // Name the code *after* the run to not block execution
       if (isNewRun) {
-        // Name the code *after* the run to not block execution
         nameCode({ code, language }).then(({ name }) => {
           const newHistoryEntry: HistoryEntry = {
             name: name || "Untitled Snippet",
@@ -472,10 +468,9 @@ export default function Home() {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
       
-      setOutput(
-        (prev) =>
-          prev.replace("Compiling and running...\n", "") + `Error: ${errorMessage}\n`
-      );
+      const newOutput = (isNewRun ? "" : conversation) + `Error: ${errorMessage}\n`;
+      setOutput(newOutput);
+      setConversation(newOutput);
 
       toast({
         title: "Execution Failed",
@@ -484,7 +479,6 @@ export default function Home() {
         variant: "destructive",
       });
       setIsWaitingForInput(false);
-      setConversation("");
     } finally {
       setIsCompiling(false);
       setStdin("");
@@ -536,8 +530,8 @@ export default function Home() {
   }
 
   const handleRestoreHistory = (entry: HistoryEntry) => {
-    setCode(entry.code);
     setLanguage(entry.language);
+    setCode(entry.code);
     toast({
       title: "Code Restored",
       description: "Loaded code from history into the editor.",
