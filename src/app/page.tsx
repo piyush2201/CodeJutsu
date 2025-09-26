@@ -23,7 +23,6 @@ import { database } from "@/lib/firebase";
 import { ref, onValue, set, onDisconnect, remove, Unsubscribe } from "firebase/database";
 import Image from "next/image";
 import { HistoryPanel, type HistoryEntry } from "@/components/history-panel";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 
 
 const defaultCode: Record<Language, string> = {
@@ -159,10 +158,26 @@ const placeholderText: Record<Language, string> = {
   c: "Write your C code here...",
 };
 
+// A wrapper for getting items from local storage, handling the server-side case
+function getFromLocalStorage(key: string, defaultValue: any) {
+  if (typeof window !== 'undefined') {
+    const value = localStorage.getItem(key);
+    try {
+      return value ? JSON.parse(value) : defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
+  }
+  return defaultValue;
+}
+
+
 export default function Home() {
-  const [language, setLanguage] = useLocalStorage<Language>("codejutsu-language", "java");
-  const [theme, setTheme] = useState<Theme>("vs-dark");
-  const [code, setCode] = useLocalStorage<string>(`codejutsu-code-${language}`, defaultCode[language]);
+  const [language, setLanguage] = useState<Language>(() => getFromLocalStorage("codejutsu-language", "java"));
+  const [theme, setTheme] = useState<Theme>(() => getFromLocalStorage("codejutsu-theme", "vs-dark"));
+  const [code, setCode] = useState<string>(() => getFromLocalStorage(`codejutsu-code-${language}`, defaultCode[language]));
+  const [history, setHistory] = useState<HistoryEntry[]>(() => getFromLocalStorage("codejutsu-history", []));
+
   const [output, setOutput] = useState<string>("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [stdin, setStdin] = useState<string>("");
@@ -172,7 +187,6 @@ export default function Home() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
-  const [history, setHistory] = useLocalStorage<HistoryEntry[]>("codejutsu-history", []);
   const [conversation, setConversation] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -181,14 +195,32 @@ export default function Home() {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const roomIdRef = useRef<string | null>(null);
   const { toast } = useToast();
-  
+
+  // Effect to save language to local storage
   useEffect(() => {
+    localStorage.setItem("codejutsu-language", JSON.stringify(language));
+  }, [language]);
+
+  // Effect to save theme to local storage
+  useEffect(() => {
+    localStorage.setItem("codejutsu-theme", JSON.stringify(theme));
     if (theme === 'light') {
       document.documentElement.classList.remove('dark');
     } else {
       document.documentElement.classList.add('dark');
     }
   }, [theme]);
+  
+  // Effect to save code to local storage
+  useEffect(() => {
+    localStorage.setItem(`codejutsu-code-${language}`, JSON.stringify(code));
+  }, [code, language]);
+  
+  // Effect to save history to local storage
+  useEffect(() => {
+    localStorage.setItem("codejutsu-history", JSON.stringify(history));
+  }, [history]);
+  
 
   const setupPeerConnection = useCallback((localStream: MediaStream, roomId: string) => {
     const pc = new RTCPeerConnection({
@@ -387,7 +419,7 @@ export default function Home() {
 
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
-    // setCode is handled by the useLocalStorage hook re-running with the new key
+    setCode(getFromLocalStorage(`codejutsu-code-${lang}`, defaultCode[lang]));
     setOutput("");
     setConversation("");
     setImageUrl(null);
