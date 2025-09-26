@@ -173,6 +173,7 @@ export default function Home() {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>("codejutsu-history", []);
+  const [conversation, setConversation] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -388,6 +389,7 @@ export default function Home() {
     setLanguage(lang);
     setCode(defaultCode[lang]);
     setOutput("");
+    setConversation("");
     setImageUrl(null);
     setStdin("");
     setIsWaitingForInput(false);
@@ -411,16 +413,26 @@ export default function Home() {
     setImageUrl(null);
 
     const isNewRun = !currentStdin;
-    let conversation = isNewRun ? "" : `${output}\n> ${currentStdin}\n`;
-    
+
+    let currentConversation: string;
     if (isNewRun) {
       setOutput("Compiling and running...\n");
+      currentConversation = "";
     } else {
-      setOutput(conversation);
+      currentConversation = `${conversation}${output}\n> ${currentStdin}\n`;
+      setOutput(currentConversation);
     }
     
     try {
+      const result = await compileAndRunCode({
+        code,
+        language,
+        stdin: currentStdin,
+        conversation: currentConversation,
+      });
+
       if (isNewRun) {
+        // Name the code *after* the run to not block execution
         nameCode({ code, language }).then(({ name }) => {
           const newHistoryEntry: HistoryEntry = {
             name: name || "Untitled Snippet",
@@ -432,17 +444,11 @@ export default function Home() {
         });
       }
 
-      const result = await compileAndRunCode({
-        code,
-        language,
-        stdin: currentStdin,
-        conversation: conversation,
-      });
-
       const resultOutput = result.output;
       
-      const finalOutput = (isNewRun ? "" : conversation) + resultOutput;
+      const finalOutput = (isNewRun ? "" : currentConversation) + resultOutput;
       setOutput(finalOutput.replace("Compiling and running...\n", ""));
+      setConversation(isNewRun ? "" : currentConversation);
 
       if (
         resultOutput.toLowerCase().includes("enter") ||
@@ -451,6 +457,7 @@ export default function Home() {
         setIsWaitingForInput(true);
       } else {
         setIsWaitingForInput(false);
+        setConversation(""); // Reset conversation after completion
       }
     } catch (error) {
       console.error(error);
@@ -467,6 +474,7 @@ export default function Home() {
         variant: "destructive",
       });
       setIsWaitingForInput(false);
+      setConversation("");
     } finally {
       setIsCompiling(false);
       setStdin("");
