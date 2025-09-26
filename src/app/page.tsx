@@ -100,7 +100,7 @@ int main() {
             std::cout << "Error: That's not a valid number. Please enter only digits." << std::endl;
         }
 
-        std::cout << "\\nPlease enter another number (or type 'exit' to quit):" << std::endl;
+        std::cout << std::endl << "Please enter another number (or type 'exit' to quit):" << std::endl;
     }
 
     return 0;
@@ -414,22 +414,42 @@ export default function Home() {
 
     const isNewRun = !currentStdin;
 
-    let currentConversation: string;
+    // This is the new logic to handle conversation history
+    let newConversation: string;
+    let newOutput: string;
     if (isNewRun) {
-      setOutput("Compiling and running...\n");
-      currentConversation = "";
+      newOutput = "Compiling and running...\n";
+      newConversation = "";
     } else {
-      currentConversation = `${conversation}${output}\n> ${currentStdin}\n`;
-      setOutput(currentConversation);
+      newConversation = `${conversation}${output}\n> ${currentStdin}\n`;
+      newOutput = newConversation;
     }
+    setOutput(newOutput);
+    setConversation(newConversation);
     
     try {
       const result = await compileAndRunCode({
         code,
         language,
         stdin: currentStdin,
-        conversation: currentConversation,
+        conversation: newConversation,
       });
+
+      const resultOutput = result.output;
+      
+      const finalOutput = (isNewRun ? "" : newConversation) + resultOutput;
+      setOutput(finalOutput.replace("Compiling and running...\n", ""));
+      setConversation(finalOutput);
+
+      if (
+        resultOutput.toLowerCase().includes("enter") ||
+        resultOutput.toLowerCase().includes("input")
+      ) {
+        setIsWaitingForInput(true);
+      } else {
+        setIsWaitingForInput(false);
+        setConversation(""); // Reset conversation after completion
+      }
 
       if (isNewRun) {
         // Name the code *after* the run to not block execution
@@ -444,29 +464,16 @@ export default function Home() {
         });
       }
 
-      const resultOutput = result.output;
-      
-      const finalOutput = (isNewRun ? "" : currentConversation) + resultOutput;
-      setOutput(finalOutput.replace("Compiling and running...\n", ""));
-      setConversation(isNewRun ? "" : currentConversation);
-
-      if (
-        resultOutput.toLowerCase().includes("enter") ||
-        resultOutput.toLowerCase().includes("input")
-      ) {
-        setIsWaitingForInput(true);
-      } else {
-        setIsWaitingForInput(false);
-        setConversation(""); // Reset conversation after completion
-      }
     } catch (error) {
       console.error(error);
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
+      
       setOutput(
         (prev) =>
           prev.replace("Compiling and running...\n", "") + `Error: ${errorMessage}\n`
       );
+
       toast({
         title: "Execution Failed",
         description:
