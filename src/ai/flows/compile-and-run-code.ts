@@ -31,7 +31,7 @@ const compilationPrompt = ai.definePrompt({
   name: 'compilationPrompt',
   input: { schema: CompileAndRunCodeInputSchema },
   output: { schema: CompileAndRunCodeOutputSchema },
-  model: 'googleai/gemini-1.5-flash',
+  model: 'googleai/gemini-2.5-flash',
   prompt: `
     You are a code compiler and runtime environment.
     Your task is to take the provided code, language, and conversation history, simulate its execution, and return the next part of the output.
@@ -42,7 +42,7 @@ const compilationPrompt = ai.definePrompt({
     - If there are compilation or runtime errors, return only the error messages.
     - Do not add any extra explanations, greetings, or formatting. Only return the raw output or a prompt for input.
     
-    Here is the previous conversation, including any prompts for input and the user's replies. Use this to understand the current state of the execution:
+    Here is the previous conversation, including any prompts for input and the user's replies:
     \'\'\'
     {{{conversation}}}
     \'\'\'

@@ -412,20 +412,12 @@ export default function Home() {
 
     let conversation;
     let currentOutput = output;
+    const isNewRun = !currentStdin;
 
     if (currentStdin) {
       currentOutput = `${output}\n${currentStdin}\n`;
       conversation = currentOutput;
     } else {
-      // This is a new run, save to history
-      const { name } = await nameCode({ code, language });
-      const newHistoryEntry: HistoryEntry = {
-        name: name || "Untitled Snippet",
-        code,
-        language,
-        timestamp: new Date().toISOString(),
-      };
-      setHistory([newHistoryEntry, ...history]);
       currentOutput = "Compiling and running...\n";
       conversation = "";
     }
@@ -439,6 +431,19 @@ export default function Home() {
         stdin: currentStdin,
         conversation: conversation,
       });
+      
+      if (isNewRun) {
+        // Run naming in the background after we get the result
+        nameCode({ code, language }).then(({ name }) => {
+          const newHistoryEntry: HistoryEntry = {
+            name: name || "Untitled Snippet",
+            code,
+            language,
+            timestamp: new Date().toISOString(),
+          };
+          setHistory([newHistoryEntry, ...history]);
+        });
+      }
 
       const resultOutput = result.output;
       
